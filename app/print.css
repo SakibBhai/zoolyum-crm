@@ -1,0 +1,56 @@
+@media print {
+  /* Hide everything except the invoice print view */
+  body * {
+    visibility: hidden;
+  }
+
+  .invoice-print-view,
+  .invoice-print-view * {
+    visibility: visible;
+  }
+
+  .invoice-print-view {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+
+  /* Hide buttons and UI elements */
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Ensure proper page breaks */
+  .page-break {
+    page-break-after: always;
+  }
+
+  /* Adjust font sizes and spacing for print */
+  body {
+    font-size: 12pt;
+    line-height: 1.3;
+  }
+
+  h1 {
+    font-size: 18pt;
+  }
+
+  h2 {
+    font-size: 16pt;
+  }
+
+  h3 {
+    font-size: 14pt;
+  }
+
+  table {
+    page-break-inside: avoid;
+  }
+
+  tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+}
