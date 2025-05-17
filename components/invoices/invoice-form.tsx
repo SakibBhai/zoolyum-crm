@@ -14,21 +14,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DatePicker } from "@/components/ui/date-picker"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format, addDays } from "date-fns"
-import { Trash2, Plus, FileText, User, CreditCard } from "lucide-react"
+import { Trash2, Plus, FileText, User, CreditCard, Save, Eye, ArrowRight, ArrowLeft } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
-import type { InvoiceLineItem, InvoiceFormData, InvoiceRecipient } from "@/types/invoice"
+import type { InvoiceLineItem, Invoice } from "@/types/invoice"
 import { toast } from "@/components/ui/use-toast"
-
-// Add these imports at the top of the file
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
+import { Progress } from "@/components/ui/progress"
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Switch } from "@/components/ui/switch"
 
-// Add this validation schema after the imports
+// Validation schema
 const lineItemSchema = z.object({
   id: z.string(),
   description: z.string().min(1, "Description is required"),
-  quantity: z.number().min(1, "Quantity must be at least 1"),
+  quantity: z.number().min(0.01, "Quantity must be greater than 0"),
   rate: z.number().min(0, "Rate must be a positive number"),
   amount: z.number(),
   taskId: z.string().optional(),
@@ -67,11 +68,13 @@ type InvoiceFormSchema = z.infer<typeof invoiceFormSchema>
 interface InvoiceFormProps {
   clientId?: string
   projectId?: string
+  invoice?: Invoice
+  isEditing?: boolean
 }
 
-export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
+export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }: InvoiceFormProps) {
   const router = useRouter()
-  const { createInvoice } = useInvoiceContext()
+  const { createInvoice, updateInvoice } = useInvoiceContext()
   const { projects } = useProjectContext()
   const { tasks } = useTaskContext()
 
@@ -90,93 +93,106 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
   const defaultDueDate = addDays(today, 14) // Default due date is 2 weeks from today
 
   const [activeTab, setActiveTab] = useState("details")
-  const [formData, setFormData] = useState<InvoiceFormData>({
-    clientId: clientId || "",
-    recipientInfo: {
-      id: "",
-      name: "",
-      email: "",
-      address: {
-        street: "",
-        city: "",
-        state: "",
-        zipCode: "",
-        country: "",
-      },
-    },
-    projectId: projectId || "",
-    issueDate: format(today, "yyyy-MM-dd"),
-    dueDate: format(defaultDueDate, "yyyy-MM-dd"),
-    lineItems: [],
-    taxRate: 10, // Default tax rate
-    discount: 0,
-    notes: "",
-    terms: "Payment due within 14 days of receipt.",
-    paymentMethod: "",
-    paymentDetails: "",
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [saveAsDraft, setSaveAsDraft] = useState(false)
+  const [formProgress, setFormProgress] = useState(0)
+
+  // Initialize form with default values or existing invoice data
+  const defaultValues = invoice
+    ? {
+        clientId: invoice.clientId,
+        recipientInfo: invoice.recipientInfo,
+        projectId: invoice.projectId || "",
+        issueDate: invoice.issueDate,
+        dueDate: invoice.dueDate,
+        lineItems: invoice.lineItems,
+        taxRate: invoice.taxRate,
+        discount: invoice.discount,
+        notes: invoice.notes || "",
+        terms: invoice.terms || "",
+        paymentMethod: invoice.paymentMethod || "",
+        paymentDetails: invoice.paymentDetails || "",
+      }
+    : {
+        clientId: clientId || "",
+        recipientInfo: {
+          id: "",
+          name: "",
+          email: "",
+          address: {
+            street: "",
+            city: "",
+            state: "",
+            zipCode: "",
+            country: "",
+          },
+        },
+        projectId: projectId || "",
+        issueDate: format(today, "yyyy-MM-dd"),
+        dueDate: format(defaultDueDate, "yyyy-MM-dd"),
+        lineItems: [],
+        taxRate: 10, // Default tax rate
+        discount: 0,
+        notes: "",
+        terms: "Payment due within 14 days of receipt.",
+        paymentMethod: "",
+        paymentDetails: "",
+      }
+
+  const {
+    control,
+    handleSubmit,
+    watch,
+    setValue,
+    formState: { errors, isValid, isDirty },
+    reset,
+  } = useForm<InvoiceFormSchema>({
+    resolver: zodResolver(invoiceFormSchema),
+    defaultValues,
+    mode: "onChange",
   })
+
+  const formValues = watch()
+
+  // Update form progress based on filled fields
+  useEffect(() => {
+    const requiredFields = [
+      !!formValues.clientId,
+      !!formValues.recipientInfo.name,
+      !!formValues.recipientInfo.email,
+      formValues.lineItems.length > 0,
+      formValues.lineItems.every((item) => !!item.description && item.quantity > 0),
+    ]
+
+    const completedFields = requiredFields.filter(Boolean).length
+    const progress = Math.round((completedFields / requiredFields.length) * 100)
+    setFormProgress(progress)
+  }, [formValues])
 
   // Update recipient info when client changes
   useEffect(() => {
-    if (formData.clientId) {
-      const selectedClient = clients.find((client) => client.id === formData.clientId)
+    if (formValues.clientId && !isEditing) {
+      const selectedClient = clients.find((client) => client.id === formValues.clientId)
       if (selectedClient) {
-        setFormData((prev) => ({
-          ...prev,
-          recipientInfo: {
-            ...prev.recipientInfo,
-            id: selectedClient.id,
-            name: selectedClient.name,
-          },
-        }))
+        setValue("recipientInfo", {
+          ...formValues.recipientInfo,
+          id: selectedClient.id,
+          name: selectedClient.name,
+        })
       }
     }
-  }, [formData.clientId, clients])
+  }, [formValues.clientId, clients, setValue, isEditing])
 
   // Calculate totals
-  const subtotal = formData.lineItems.reduce((sum, item) => sum + item.amount, 0)
-  const taxAmount = (subtotal * formData.taxRate) / 100
-  const total = subtotal + taxAmount - formData.discount
+  const subtotal = formValues.lineItems.reduce((sum, item) => sum + (item.amount || 0), 0)
+  const taxAmount = (subtotal * formValues.taxRate) / 100
+  const total = subtotal + taxAmount - formValues.discount
 
   // Filter projects by selected client
-  const clientProjects = projects.filter((project) => project.clientId === formData.clientId)
+  const clientProjects = projects.filter((project) => project.clientId === formValues.clientId)
 
   // Filter tasks by selected project
-  const projectTasks = tasks.filter((task) => task.projectId === formData.projectId)
-
-  // Handle client change
-  const handleClientChange = (clientId: string) => {
-    setFormData({
-      ...formData,
-      clientId,
-      projectId: "", // Reset project when client changes
-    })
-  }
-
-  // Handle recipient info change
-  const handleRecipientChange = (field: keyof InvoiceRecipient, value: string) => {
-    setFormData({
-      ...formData,
-      recipientInfo: {
-        ...formData.recipientInfo,
-        [field]: value,
-      },
-    })
-  }
-
-  // Handle recipient address change
-  const handleAddressChange = (field: keyof InvoiceRecipient["address"], value: string) => {
-    setFormData({
-      ...formData,
-      recipientInfo: {
-        ...formData.recipientInfo,
-        address: {
-          ...formData.recipientInfo.address,
-          [field]: value,
-        },
-      },
-    })
-  }
+  const projectTasks = tasks.filter((task) => task.projectId === formValues.projectId)
 
   // Handle adding a new line item
   const handleAddLineItem = () => {
@@ -187,25 +203,22 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
       rate: 0,
       amount: 0,
     }
-    setFormData({
-      ...formData,
-      lineItems: [...formData.lineItems, newLineItem],
-    })
+    setValue("lineItems", [...formValues.lineItems, newLineItem])
   }
 
   // Handle removing a line item
   const handleRemoveLineItem = (id: string) => {
-    setFormData({
-      ...formData,
-      lineItems: formData.lineItems.filter((item) => item.id !== id),
-    })
+    setValue(
+      "lineItems",
+      formValues.lineItems.filter((item) => item.id !== id),
+    )
   }
 
   // Handle line item changes
   const handleLineItemChange = (id: string, field: keyof InvoiceLineItem, value: any) => {
-    setFormData({
-      ...formData,
-      lineItems: formData.lineItems.map((item) => {
+    setValue(
+      "lineItems",
+      formValues.lineItems.map((item) => {
         if (item.id === id) {
           const updatedItem = { ...item, [field]: value }
 
@@ -218,7 +231,7 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
         }
         return item
       }),
-    })
+    )
   }
 
   // Handle task selection for a line item
@@ -237,98 +250,215 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
   }
 
   // Handle form submission
-  // const handleSubmit = (e: React.FormEvent) => {
-  //   e.preventDefault()
-
-  //   if (formData.lineItems.length === 0) {
-  //     toast({
-  //       title: "Error",
-  //       description: "Please add at least one line item to the invoice.",
-  //       variant: "destructive",
-  //     })
-  //     return
-  //   }
-
-  //   if (!formData.recipientInfo.name || !formData.recipientInfo.email) {
-  //     toast({
-  //       title: "Error",
-  //       description: "Please provide recipient name and email.",
-  //       variant: "destructive",
-  //     })
-  //     setActiveTab("recipient")
-  //     return
-  //   }
-
-  //   try {
-  //     const newInvoice = createInvoice(formData)
-  //     toast({
-  //       title: "Success",
-  //       description: `Invoice ${newInvoice.invoiceNumber} created successfully.`,
-  //     })
-  //     router.push(`/dashboard/invoices/${newInvoice.id}`)
-  //   } catch (error) {
-  //     toast({
-  //       title: "Error",
-  //       description: "Failed to create invoice. Please try again.",
-  //       variant: "destructive",
-  //     })
-  //   }
-  // }
-
-  // Update the handleSubmit function to use the validation schema
-  const handleSubmit = (data: InvoiceFormSchema) => {
+  const onSubmit = (data: InvoiceFormSchema) => {
     try {
-      const newInvoice = createInvoice(data)
-      toast({
-        title: "Success",
-        description: `Invoice ${newInvoice.invoiceNumber} created successfully.`,
-      })
-      router.push(`/dashboard/invoices/${newInvoice.id}`)
+      if (isEditing && invoice) {
+        const updatedInvoice = updateInvoice(invoice.id, {
+          ...data,
+          status: saveAsDraft ? "draft" : invoice.status,
+        })
+        toast({
+          title: "Success",
+          description: `Invoice ${updatedInvoice?.invoiceNumber} updated successfully.`,
+        })
+        router.push(`/dashboard/invoices/${invoice.id}`)
+      } else {
+        const newInvoice = createInvoice({
+          ...data,
+          status: saveAsDraft ? "draft" : "sent",
+        })
+        toast({
+          title: "Success",
+          description: `Invoice ${newInvoice.invoiceNumber} created successfully.`,
+        })
+        router.push(`/dashboard/invoices/${newInvoice.id}`)
+      }
     } catch (error) {
-      console.error("Error creating invoice:", error)
+      console.error("Error saving invoice:", error)
       toast({
         title: "Error",
-        description: "Failed to create invoice. Please try again.",
+        description: "Failed to save invoice. Please try again.",
         variant: "destructive",
       })
     }
   }
 
-  // Replace the existing form submission handler with this
-  const form = useForm<InvoiceFormSchema>({
-    resolver: zodResolver(invoiceFormSchema),
-    defaultValues: {
-      clientId: clientId || "",
-      recipientInfo: {
-        id: "",
-        name: "",
-        email: "",
-        address: {
-          street: "",
-          city: "",
-          state: "",
-          zipCode: "",
-          country: "",
-        },
-      },
-      projectId: projectId || "",
-      issueDate: format(today, "yyyy-MM-dd"),
-      dueDate: format(defaultDueDate, "yyyy-MM-dd"),
-      lineItems: [],
-      taxRate: 10,
-      discount: 0,
-      notes: "",
-      terms: "Payment due within 14 days of receipt.",
-      paymentMethod: "",
-      paymentDetails: "",
-    },
-  })
+  // Handle saving as draft
+  const handleSaveAsDraft = () => {
+    setSaveAsDraft(true)
+    handleSubmit(onSubmit)()
+  }
+
+  // Handle navigation between tabs
+  const handleNextTab = () => {
+    if (activeTab === "details") setActiveTab("recipient")
+    else if (activeTab === "recipient") setActiveTab("items")
+    else if (activeTab === "items") setActiveTab("payment")
+  }
+
+  const handlePrevTab = () => {
+    if (activeTab === "payment") setActiveTab("items")
+    else if (activeTab === "items") setActiveTab("recipient")
+    else if (activeTab === "recipient") setActiveTab("details")
+  }
+
+  // Invoice preview component
+  const InvoicePreview = () => (
+    <div className="p-6 bg-white rounded-lg shadow-lg max-h-[80vh] overflow-y-auto">
+      <div className="flex justify-between items-start mb-8">
+        <div>
+          <h2 className="text-2xl font-bold">INVOICE</h2>
+          <p className="text-gray-500">{isEditing && invoice ? invoice.invoiceNumber : "Draft Invoice"}</p>
+        </div>
+        <div className="text-right">
+          <p className="font-bold">Your Company Name</p>
+          <p>123 Business Street</p>
+          <p>City, State ZIP</p>
+          <p>contact@yourcompany.com</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-8 mb-8">
+        <div>
+          <h3 className="font-bold mb-2">Bill To:</h3>
+          <p className="font-medium">{formValues.recipientInfo.name}</p>
+          <p>{formValues.recipientInfo.email}</p>
+          {formValues.recipientInfo.address.street && <p>{formValues.recipientInfo.address.street}</p>}
+          {(formValues.recipientInfo.address.city || formValues.recipientInfo.address.state) && (
+            <p>
+              {formValues.recipientInfo.address.city}
+              {formValues.recipientInfo.address.city && formValues.recipientInfo.address.state
+                ? `, ${formValues.recipientInfo.address.state}`
+                : formValues.recipientInfo.address.state}
+              {formValues.recipientInfo.address.zipCode && ` ${formValues.recipientInfo.address.zipCode}`}
+            </p>
+          )}
+          {formValues.recipientInfo.address.country && <p>{formValues.recipientInfo.address.country}</p>}
+        </div>
+        <div className="text-right">
+          <div className="mb-2">
+            <span className="font-bold">Invoice Date:</span> {format(new Date(formValues.issueDate), "MMMM d, yyyy")}
+          </div>
+          <div className="mb-2">
+            <span className="font-bold">Due Date:</span> {format(new Date(formValues.dueDate), "MMMM d, yyyy")}
+          </div>
+          {formValues.projectId && (
+            <div className="mb-2">
+              <span className="font-bold">Project:</span>{" "}
+              {clientProjects.find((p) => p.id === formValues.projectId)?.name || "N/A"}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <table className="w-full mb-8">
+        <thead>
+          <tr className="border-b border-gray-300">
+            <th className="text-left py-2">Description</th>
+            <th className="text-center py-2">Quantity</th>
+            <th className="text-right py-2">Rate</th>
+            <th className="text-right py-2">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {formValues.lineItems.map((item) => (
+            <tr key={item.id} className="border-b border-gray-200">
+              <td className="py-3">{item.description}</td>
+              <td className="text-center py-3">{item.quantity}</td>
+              <td className="text-right py-3">${item.rate.toFixed(2)}</td>
+              <td className="text-right py-3">${item.amount.toFixed(2)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <div className="flex justify-end mb-8">
+        <div className="w-64">
+          <div className="flex justify-between py-2">
+            <span>Subtotal:</span>
+            <span>${subtotal.toFixed(2)}</span>
+          </div>
+          <div className="flex justify-between py-2">
+            <span>Tax ({formValues.taxRate}%):</span>
+            <span>${taxAmount.toFixed(2)}</span>
+          </div>
+          {formValues.discount > 0 && (
+            <div className="flex justify-between py-2">
+              <span>Discount:</span>
+              <span>-${formValues.discount.toFixed(2)}</span>
+            </div>
+          )}
+          <div className="flex justify-between py-2 font-bold border-t border-gray-300 mt-2">
+            <span>Total:</span>
+            <span>${total.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+
+      {formValues.notes && (
+        <div className="mb-6">
+          <h3 className="font-bold mb-2">Notes:</h3>
+          <p className="text-gray-700">{formValues.notes}</p>
+        </div>
+      )}
+
+      {formValues.terms && (
+        <div className="mb-6">
+          <h3 className="font-bold mb-2">Terms and Conditions:</h3>
+          <p className="text-gray-700">{formValues.terms}</p>
+        </div>
+      )}
+
+      {formValues.paymentMethod && (
+        <div>
+          <h3 className="font-bold mb-2">Payment Method:</h3>
+          <p className="text-gray-700">
+            {formValues.paymentMethod === "bank-transfer"
+              ? "Bank Transfer"
+              : formValues.paymentMethod === "credit-card"
+                ? "Credit Card"
+                : formValues.paymentMethod === "paypal"
+                  ? "PayPal"
+                  : formValues.paymentMethod === "check"
+                    ? "Check"
+                    : formValues.paymentMethod === "cash"
+                      ? "Cash"
+                      : formValues.paymentMethod}
+          </p>
+          {formValues.paymentDetails && <p className="text-gray-700">{formValues.paymentDetails}</p>}
+        </div>
+      )}
+    </div>
+  )
 
   return (
-    <form onSubmit={form.handleSubmit(handleSubmit)}>
+    <form onSubmit={handleSubmit(onSubmit)}>
       <Card>
-        <CardHeader>
-          <CardTitle>Create New Invoice</CardTitle>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>{isEditing ? "Edit Invoice" : "Create New Invoice"}</CardTitle>
+            <div className="mt-2 flex items-center gap-2">
+              <Progress value={formProgress} className="h-2 w-[100px]" />
+              <span className="text-xs text-muted-foreground">{formProgress}% complete</span>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" type="button">
+                  <Eye className="h-4 w-4 mr-2" />
+                  Preview
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh]">
+                <InvoicePreview />
+              </DialogContent>
+            </Dialog>
+            <Button variant="outline" type="button" onClick={handleSaveAsDraft} disabled={!isValid || !isDirty}>
+              <Save className="h-4 w-4 mr-2" />
+              Save as Draft
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
@@ -360,88 +490,117 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
               {/* Client and Project Selection */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="client">Client *</Label>
-                  <Select value={formData.clientId} onValueChange={handleClientChange} required>
-                    <SelectTrigger id="client">
-                      <SelectValue placeholder="Select a client" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="client">
+                    Client <span className="text-red-500">*</span>
+                  </Label>
+                  <Controller
+                    name="clientId"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isEditing}>
+                        <SelectTrigger id="client">
+                          <SelectValue placeholder="Select a client" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {clients.map((client) => (
+                            <SelectItem key={client.id} value={client.id}>
+                              {client.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.clientId && <p className="text-sm text-red-500 mt-1">{errors.clientId.message}</p>}
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="project">Project (Optional)</Label>
-                  <Select
-                    value={formData.projectId}
-                    onValueChange={(value) => setFormData({ ...formData, projectId: value })}
-                    disabled={!formData.clientId}
-                  >
-                    <SelectTrigger id="project">
-                      <SelectValue placeholder="Select a project" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="no-project">No Project</SelectItem>
-                      {clientProjects.map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    name="projectId"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange} disabled={!formValues.clientId}>
+                        <SelectTrigger id="project">
+                          <SelectValue placeholder="Select a project" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No Project</SelectItem>
+                          {clientProjects.map((project) => (
+                            <SelectItem key={project.id} value={project.id}>
+                              {project.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
               </div>
 
               {/* Invoice Dates */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label>Issue Date *</Label>
-                  <DatePicker
-                    selected={new Date(formData.issueDate)}
-                    onSelect={(date) => setFormData({ ...formData, issueDate: format(date, "yyyy-MM-dd") })}
+                  <Label>
+                    Issue Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Controller
+                    name="issueDate"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePicker
+                        selected={new Date(field.value)}
+                        onSelect={(date) => field.onChange(format(date, "yyyy-MM-dd"))}
+                      />
+                    )}
                   />
+                  {errors.issueDate && <p className="text-sm text-red-500 mt-1">{errors.issueDate.message}</p>}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Due Date *</Label>
-                  <DatePicker
-                    selected={new Date(formData.dueDate)}
-                    onSelect={(date) => setFormData({ ...formData, dueDate: format(date, "yyyy-MM-dd") })}
+                  <Label>
+                    Due Date <span className="text-red-500">*</span>
+                  </Label>
+                  <Controller
+                    name="dueDate"
+                    control={control}
+                    render={({ field }) => (
+                      <DatePicker
+                        selected={new Date(field.value)}
+                        onSelect={(date) => field.onChange(format(date, "yyyy-MM-dd"))}
+                        minDate={new Date(formValues.issueDate)}
+                      />
+                    )}
                   />
+                  {errors.dueDate && <p className="text-sm text-red-500 mt-1">{errors.dueDate.message}</p>}
                 </div>
               </div>
 
               {/* Notes and Terms */}
               <div className="space-y-2">
                 <Label htmlFor="notes">Notes (Optional)</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Additional notes to display on the invoice..."
-                  rows={3}
+                <Controller
+                  name="notes"
+                  control={control}
+                  render={({ field }) => (
+                    <Textarea {...field} placeholder="Additional notes to display on the invoice..." rows={3} />
+                  )}
                 />
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="terms">Terms and Conditions</Label>
-                <Textarea
-                  id="terms"
-                  value={formData.terms}
-                  onChange={(e) => setFormData({ ...formData, terms: e.target.value })}
-                  placeholder="Payment terms and conditions..."
-                  rows={3}
+                <Controller
+                  name="terms"
+                  control={control}
+                  render={({ field }) => <Textarea {...field} placeholder="Payment terms and conditions..." rows={3} />}
                 />
               </div>
 
-              <div className="pt-2">
-                <Button type="button" onClick={() => setActiveTab("recipient")}>
+              <div className="pt-2 flex justify-end">
+                <Button type="button" onClick={handleNextTab}>
                   Next: Recipient Details
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </TabsContent>
@@ -450,87 +609,89 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
             <TabsContent value="recipient" className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="space-y-2">
-                  <Label htmlFor="recipient-name">Recipient Name *</Label>
-                  <Input
-                    id="recipient-name"
-                    value={formData.recipientInfo.name}
-                    onChange={(e) => handleRecipientChange("name", e.target.value)}
-                    placeholder="Company or individual name"
-                    required
+                  <Label htmlFor="recipient-name">
+                    Recipient Name <span className="text-red-500">*</span>
+                  </Label>
+                  <Controller
+                    name="recipientInfo.name"
+                    control={control}
+                    render={({ field }) => <Input {...field} placeholder="Company or individual name" />}
                   />
+                  {errors.recipientInfo?.name && (
+                    <p className="text-sm text-red-500 mt-1">{errors.recipientInfo.name.message}</p>
+                  )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="recipient-email">Recipient Email *</Label>
-                  <Input
-                    id="recipient-email"
-                    type="email"
-                    value={formData.recipientInfo.email}
-                    onChange={(e) => handleRecipientChange("email", e.target.value)}
-                    placeholder="billing@example.com"
-                    required
+                  <Label htmlFor="recipient-email">
+                    Recipient Email <span className="text-red-500">*</span>
+                  </Label>
+                  <Controller
+                    name="recipientInfo.email"
+                    control={control}
+                    render={({ field }) => <Input {...field} type="email" placeholder="billing@example.com" />}
                   />
+                  {errors.recipientInfo?.email && (
+                    <p className="text-sm text-red-500 mt-1">{errors.recipientInfo.email.message}</p>
+                  )}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="street">Street Address</Label>
-                <Input
-                  id="street"
-                  value={formData.recipientInfo.address.street}
-                  onChange={(e) => handleAddressChange("street", e.target.value)}
-                  placeholder="123 Main St"
+                <Controller
+                  name="recipientInfo.address.street"
+                  control={control}
+                  render={({ field }) => <Input {...field} placeholder="123 Main St" />}
                 />
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    value={formData.recipientInfo.address.city}
-                    onChange={(e) => handleAddressChange("city", e.target.value)}
-                    placeholder="City"
+                  <Controller
+                    name="recipientInfo.address.city"
+                    control={control}
+                    render={({ field }) => <Input {...field} placeholder="City" />}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="state">State/Province</Label>
-                  <Input
-                    id="state"
-                    value={formData.recipientInfo.address.state}
-                    onChange={(e) => handleAddressChange("state", e.target.value)}
-                    placeholder="State"
+                  <Controller
+                    name="recipientInfo.address.state"
+                    control={control}
+                    render={({ field }) => <Input {...field} placeholder="State" />}
                   />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="zipCode">Zip/Postal Code</Label>
-                  <Input
-                    id="zipCode"
-                    value={formData.recipientInfo.address.zipCode}
-                    onChange={(e) => handleAddressChange("zipCode", e.target.value)}
-                    placeholder="Zip Code"
+                  <Controller
+                    name="recipientInfo.address.zipCode"
+                    control={control}
+                    render={({ field }) => <Input {...field} placeholder="Zip Code" />}
                   />
                 </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="country">Country</Label>
-                <Input
-                  id="country"
-                  value={formData.recipientInfo.address.country}
-                  onChange={(e) => handleAddressChange("country", e.target.value)}
-                  placeholder="Country"
+                <Controller
+                  name="recipientInfo.address.country"
+                  control={control}
+                  render={({ field }) => <Input {...field} placeholder="Country" />}
                 />
               </div>
 
               <div className="flex justify-between pt-2">
-                <Button type="button" variant="outline" onClick={() => setActiveTab("details")}>
+                <Button type="button" variant="outline" onClick={handlePrevTab}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
                   Back
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("items")}>
+                <Button type="button" onClick={handleNextTab}>
                   Next: Line Items
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </TabsContent>
@@ -539,14 +700,16 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
             <TabsContent value="items" className="space-y-6">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-medium">Line Items *</h3>
+                  <h3 className="text-lg font-medium">
+                    Line Items <span className="text-red-500">*</span>
+                  </h3>
                   <Button type="button" variant="outline" size="sm" onClick={handleAddLineItem}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Item
                   </Button>
                 </div>
 
-                {formData.lineItems.length === 0 ? (
+                {formValues.lineItems.length === 0 ? (
                   <div className="text-center py-8 border rounded-md bg-muted/20">
                     <p className="text-muted-foreground">No items added yet.</p>
                     <Button type="button" variant="outline" className="mt-4" onClick={handleAddLineItem}>
@@ -559,14 +722,14 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                     {/* Header row for desktop */}
                     <div className="hidden md:grid md:grid-cols-12 gap-4 px-4 py-2 bg-muted/30 rounded-md">
                       <div className="col-span-5 font-medium">Description</div>
-                      {formData.projectId && <div className="col-span-2 font-medium">Task</div>}
+                      {formValues.projectId && <div className="col-span-2 font-medium">Task</div>}
                       <div className="col-span-1 font-medium text-center">Qty</div>
                       <div className="col-span-2 font-medium text-center">Rate</div>
                       <div className="col-span-2 font-medium text-center">Amount</div>
                       <div className="col-span-1"></div>
                     </div>
 
-                    {formData.lineItems.map((item, index) => (
+                    {formValues.lineItems.map((item, index) => (
                       <div
                         key={item.id}
                         className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end border rounded-md p-4"
@@ -582,9 +745,12 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                             placeholder="Item description"
                             required
                           />
+                          {errors.lineItems?.[index]?.description && (
+                            <p className="text-sm text-red-500 mt-1">{errors.lineItems[index]?.description?.message}</p>
+                          )}
                         </div>
 
-                        {formData.projectId && (
+                        {formValues.projectId && (
                           <div className="col-span-1 md:col-span-2 space-y-2">
                             <Label htmlFor={`item-task-${index}`} className="md:hidden">
                               Related Task
@@ -598,6 +764,7 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="no-task">No Task</SelectItem>
+                                <SelectItem value="no-value" hidden={true}></SelectItem>
                                 {projectTasks.map((task) => (
                                   <SelectItem key={task.id} value={task.id}>
                                     {task.name}
@@ -615,13 +782,16 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                           <Input
                             id={`item-qty-${index}`}
                             type="number"
-                            min="1"
-                            step="1"
+                            min="0.01"
+                            step="0.01"
                             value={item.quantity}
                             onChange={(e) => handleLineItemChange(item.id, "quantity", Number(e.target.value))}
                             required
                             className="text-center"
                           />
+                          {errors.lineItems?.[index]?.quantity && (
+                            <p className="text-sm text-red-500 mt-1">{errors.lineItems[index]?.quantity?.message}</p>
+                          )}
                         </div>
 
                         <div className="col-span-1 md:col-span-2 space-y-2">
@@ -641,6 +811,9 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                               className="pl-6 text-center"
                             />
                           </div>
+                          {errors.lineItems?.[index]?.rate && (
+                            <p className="text-sm text-red-500 mt-1">{errors.lineItems[index]?.rate?.message}</p>
+                          )}
                         </div>
 
                         <div className="col-span-1 md:col-span-2 space-y-2">
@@ -656,6 +829,7 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                             variant="ghost"
                             size="icon"
                             onClick={() => handleRemoveLineItem(item.id)}
+                            disabled={formValues.lineItems.length === 1}
                           >
                             <Trash2 className="h-4 w-4 text-destructive" />
                             <span className="sr-only">Remove item</span>
@@ -665,6 +839,8 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                     ))}
                   </div>
                 )}
+
+                {errors.lineItems && <p className="text-sm text-red-500 mt-1">{errors.lineItems.message}</p>}
 
                 {/* Totals */}
                 <div className="mt-6 space-y-4 bg-muted/30 p-4 rounded-lg">
@@ -678,15 +854,20 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                       Tax Rate:
                     </Label>
                     <div className="flex items-center">
-                      <Input
-                        id="tax-rate"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                        value={formData.taxRate}
-                        onChange={(e) => setFormData({ ...formData, taxRate: Number(e.target.value) })}
-                        className="w-20"
+                      <Controller
+                        name="taxRate"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            className="w-20"
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        )}
                       />
                       <span className="ml-2">%</span>
                     </div>
@@ -699,14 +880,19 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                     </Label>
                     <div className="flex items-center">
                       <span className="mr-2">$</span>
-                      <Input
-                        id="discount"
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={formData.discount}
-                        onChange={(e) => setFormData({ ...formData, discount: Number(e.target.value) })}
-                        className="w-24"
+                      <Controller
+                        name="discount"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            className="w-24"
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                        )}
                       />
                     </div>
                   </div>
@@ -719,11 +905,13 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
               </div>
 
               <div className="flex justify-between pt-2">
-                <Button type="button" variant="outline" onClick={() => setActiveTab("recipient")}>
+                <Button type="button" variant="outline" onClick={handlePrevTab}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
                   Back
                 </Button>
-                <Button type="button" onClick={() => setActiveTab("payment")}>
+                <Button type="button" onClick={handleNextTab}>
                   Next: Payment Details
+                  <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </div>
             </TabsContent>
@@ -733,32 +921,39 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="payment-method">Payment Method</Label>
-                  <Select
-                    value={formData.paymentMethod || ""}
-                    onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
-                  >
-                    <SelectTrigger id="payment-method">
-                      <SelectValue placeholder="Select payment method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="bank-transfer">Bank Transfer</SelectItem>
-                      <SelectItem value="credit-card">Credit Card</SelectItem>
-                      <SelectItem value="paypal">PayPal</SelectItem>
-                      <SelectItem value="check">Check</SelectItem>
-                      <SelectItem value="cash">Cash</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    name="paymentMethod"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger id="payment-method">
+                          <SelectValue placeholder="Select payment method" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bank-transfer">Bank Transfer</SelectItem>
+                          <SelectItem value="credit-card">Credit Card</SelectItem>
+                          <SelectItem value="paypal">PayPal</SelectItem>
+                          <SelectItem value="check">Check</SelectItem>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                 </div>
 
                 <div className="space-y-2">
                   <Label htmlFor="payment-details">Payment Instructions</Label>
-                  <Textarea
-                    id="payment-details"
-                    value={formData.paymentDetails || ""}
-                    onChange={(e) => setFormData({ ...formData, paymentDetails: e.target.value })}
-                    placeholder="Bank account details, PayPal email, or other payment instructions..."
-                    rows={3}
+                  <Controller
+                    name="paymentDetails"
+                    control={control}
+                    render={({ field }) => (
+                      <Textarea
+                        {...field}
+                        placeholder="Bank account details, PayPal email, or other payment instructions..."
+                        rows={3}
+                      />
+                    )}
                   />
                 </div>
 
@@ -768,27 +963,29 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Client:</span>
-                      <span className="font-medium">{formData.recipientInfo.name || "Not selected"}</span>
+                      <span className="font-medium">
+                        {clients.find((c) => c.id === formValues.clientId)?.name || "Not selected"}
+                      </span>
                     </div>
-                    {formData.projectId && (
+                    {formValues.projectId && (
                       <div className="flex justify-between">
                         <span className="text-muted-foreground">Project:</span>
                         <span className="font-medium">
-                          {clientProjects.find((p) => p.id === formData.projectId)?.name || "None"}
+                          {clientProjects.find((p) => p.id === formValues.projectId)?.name || "None"}
                         </span>
                       </div>
                     )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Issue Date:</span>
-                      <span>{format(new Date(formData.issueDate), "MMM d, yyyy")}</span>
+                      <span>{format(new Date(formValues.issueDate), "MMM d, yyyy")}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Due Date:</span>
-                      <span>{format(new Date(formData.dueDate), "MMM d, yyyy")}</span>
+                      <span>{format(new Date(formValues.dueDate), "MMM d, yyyy")}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Items:</span>
-                      <span>{formData.lineItems.length}</span>
+                      <span>{formValues.lineItems.length}</span>
                     </div>
                     <div className="flex justify-between font-medium">
                       <span>Total Amount:</span>
@@ -796,13 +993,21 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
                     </div>
                   </div>
                 </div>
+
+                <div className="flex items-center space-x-2 mt-4">
+                  <Switch id="save-as-draft" checked={saveAsDraft} onCheckedChange={setSaveAsDraft} />
+                  <Label htmlFor="save-as-draft">Save as draft</Label>
+                </div>
               </div>
 
               <div className="flex justify-between pt-2">
-                <Button type="button" variant="outline" onClick={() => setActiveTab("items")}>
+                <Button type="button" variant="outline" onClick={handlePrevTab}>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
                   Back
                 </Button>
-                <Button type="submit">Create Invoice</Button>
+                <Button type="submit" disabled={!isValid}>
+                  {isEditing ? "Update" : "Create"} Invoice
+                </Button>
               </div>
             </TabsContent>
           </Tabs>
@@ -811,7 +1016,15 @@ export function InvoiceForm({ clientId, projectId }: InvoiceFormProps) {
           <Button type="button" variant="outline" onClick={() => router.back()}>
             Cancel
           </Button>
-          <Button type="submit">Create Invoice</Button>
+          <div className="flex gap-2">
+            <Button type="button" variant="outline" onClick={handleSaveAsDraft} disabled={!isValid || !isDirty}>
+              <Save className="h-4 w-4 mr-2" />
+              Save as Draft
+            </Button>
+            <Button type="submit" disabled={!isValid}>
+              {isEditing ? "Update" : "Create"} Invoice
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </form>
