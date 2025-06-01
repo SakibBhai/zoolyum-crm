@@ -49,17 +49,43 @@ export function ClientForm() {
     },
   })
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // In a real app, you would submit to your API here
-    console.log(values)
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      const response = await fetch("/api/clients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: values.name,
+          industry: values.industry,
+          contact_name: values.contactName,
+          email: values.email,
+          phone: values.phone,
+          status: values.status,
+          notes: values.notes || "",
+        }),
+      })
 
-    toast({
-      title: "Client created",
-      description: `${values.name} has been added to your clients.`,
-    })
+      if (!response.ok) {
+        throw new Error("Failed to create client")
+      }
 
-    // Redirect to clients list
-    router.push("/dashboard/clients")
+      toast({
+        title: "Client created",
+        description: `${values.name} has been added to your clients.`,
+      })
+
+      // Redirect to clients list
+      router.push("/dashboard/clients")
+    } catch (error) {
+      console.error("Error creating client:", error)
+      toast({
+        title: "Error",
+        description: "There was a problem creating the client. Please try again.",
+        variant: "destructive",
+      })
+    }
   }
 
   return (

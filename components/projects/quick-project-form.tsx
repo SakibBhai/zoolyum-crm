@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -8,15 +9,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { useRouter } from "next/navigation"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Loader2 } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
-import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
 // Mock data for team members
 const teamMembers = [
@@ -28,119 +27,148 @@ const teamMembers = [
 ]
 
 const projectTypes = [
-  "Social Media Management",
-  "Branding",
-  "Website Design",
-  "Content Marketing",
-  "Email Marketing",
-  "SEO",
-  "PPC",
-  "Video Production",
-  "Graphic Design",
-  "Other",
+  { value: "social_media_management", label: "Social Media Management" },
+  { value: "branding", label: "Branding" },
+  { value: "website_design", label: "Website Design" },
+  { value: "content_marketing", label: "Content Marketing" },
+  { value: "email_marketing", label: "Email Marketing" },
+  { value: "seo", label: "SEO" },
+  { value: "ppc", label: "PPC" },
+  { value: "video_production", label: "Video Production" },
+  { value: "graphic_design", label: "Graphic Design" },
+  { value: "other", label: "Other" },
 ]
 
 const formSchema = z.object({
   name: z.string().min(2, {
     message: "Project name must be at least 2 characters.",
   }),
-  clientId: z.string({
+  client_id: z.string({
     required_error: "Please select a client.",
   }),
   type: z.string({
     required_error: "Please select a project type.",
   }),
-  managerId: z.string({
+  manager_id: z.string({
     required_error: "Please select a project manager.",
   }),
-  startDate: z.date({
+  start_date: z.date({
     required_error: "Please select a start date.",
   }),
-  deadline: z.date({
-    required_error: "Please select a deadline.",
-  }),
-  status: z.string(),
+  deadline: z
+    .date({
+      required_error: "Please select a deadline.",
+    })
+    .refine((date) => date > new Date(), {
+      message: "Deadline must be in the future",
+    }),
+  status: z.string().default("not_started"),
   description: z.string().optional(),
 })
 
-export function ProjectForm() {
-  const { toast } = useToast()
-  const router = useRouter()
-  const [clients, setClients] = useState<Array<{ id: string; name: string }>>([])
+interface Client {
+  id: string
+  name: string
+}
+
+interface QuickProjectFormProps {
+  onSuccess?: () => void
+  onCancel?: () => void
+  defaultClientId?: string
+}
+
+export function QuickProjectForm({ onSuccess, onCancel, defaultClientId }: QuickProjectFormProps) {
+  const [clients, setClients] = useState<Client[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingClients, setIsLoadingClients] = useState(true)
+  const { toast } = useToast()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      clientId: "",
+      client_id: defaultClientId || "",
       type: "",
-      managerId: "",
+      manager_id: "",
       status: "not_started",
       description: "",
     },
   })
 
   useEffect(() => {
-    // Fetch clients for the dropdown
     async function fetchClients() {
       try {
-        setIsLoading(true)
+        setIsLoadingClients(true)
         const response = await fetch("/api/clients")
-        if (response.ok) {
-          const clientsData = await response.json()
-          setClients(Array.isArray(clientsData) ? clientsData : [])
-        } else {
-          console.error("Failed to fetch clients:", await response.text())
-          setClients([])
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch clients")
         }
+
+        const data = await response.json()
+        setClients(Array.isArray(data) ? data : [])
       } catch (error) {
         console.error("Error fetching clients:", error)
-        setClients([])
+        toast({
+          title: "Error",
+          description: "Failed to load clients. Please refresh the page.",
+          variant: "destructive",
+        })
       } finally {
-        setIsLoading(false)
+        setIsLoadingClients(false)
       }
     }
 
     fetchClients()
-  }, [])
+  }, [toast])
+
+  useEffect(() => {
+    if (defaultClientId) {
+      form.setValue("client_id", defaultClientId)
+    }
+  }, [defaultClientId, form])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsLoading(true)
+
       const response = await fetch("/api/projects", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          name: values.name,
-          client_id: values.clientId,
-          type: values.type,
-          manager_id: values.managerId,
-          start_date: values.startDate.toISOString().split("T")[0],
+          ...values,
+          start_date: values.start_date.toISOString().split("T")[0],
           deadline: values.deadline.toISOString().split("T")[0],
-          status: values.status,
-          description: values.description || "",
         }),
       })
 
       if (!response.ok) {
-        throw new Error("Failed to create project")
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create project")
       }
 
+      const newProject = await response.json()
+
       toast({
-        title: "Project created",
-        description: `${values.name} has been added to your projects.`,
+        title: "Project created successfully!",
+        description: `${values.name} has been added.`,
       })
 
-      // Redirect to projects list
-      router.push("/dashboard/projects")
+      // Reset form
+      form.reset()
+
+      // Notify parent component
+      if (onSuccess) {
+        onSuccess()
+      }
     } catch (error) {
       console.error("Error creating project:", error)
       toast({
-        title: "Error",
-        description: "There was a problem creating the project. Please try again.",
+        title: "Error creating project",
+        description:
+          error instanceof Error ? error.message : "There was a problem creating the project. Please try again.",
         variant: "destructive",
       })
     } finally {
@@ -150,15 +178,19 @@ export function ProjectForm() {
 
   return (
     <Card>
-      <CardContent className="pt-6">
+      <CardHeader>
+        <CardTitle>Add New Project</CardTitle>
+        <CardDescription>Create a new project for your client</CardDescription>
+      </CardHeader>
+      <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Project Name</FormLabel>
+                  <FormLabel>Project Name*</FormLabel>
                   <FormControl>
                     <Input placeholder="Summer Collection Campaign" {...field} />
                   </FormControl>
@@ -167,31 +199,29 @@ export function ProjectForm() {
               )}
             />
 
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
               <FormField
                 control={form.control}
-                name="clientId"
+                name="client_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Client</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Client*</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value}
+                      disabled={isLoadingClients || !!defaultClientId}
+                    >
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder={isLoading ? "Loading clients..." : "Select a client"} />
+                          <SelectValue placeholder={isLoadingClients ? "Loading clients..." : "Select client"} />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {clients && clients.length > 0 ? (
-                          clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name}
-                            </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-clients" disabled>
-                            {isLoading ? "Loading clients..." : "No clients available"}
+                        {clients.map((client) => (
+                          <SelectItem key={client.id} value={client.id}>
+                            {client.name}
                           </SelectItem>
-                        )}
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -204,8 +234,8 @@ export function ProjectForm() {
                 name="type"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Project Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Project Type*</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select project type" />
@@ -213,8 +243,8 @@ export function ProjectForm() {
                       </FormControl>
                       <SelectContent>
                         {projectTypes.map((type) => (
-                          <SelectItem key={type} value={type.toLowerCase().replace(/\s+/g, "_")}>
-                            {type}
+                          <SelectItem key={type.value} value={type.value}>
+                            {type.label}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -225,13 +255,13 @@ export function ProjectForm() {
               />
             </div>
 
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
               <FormField
                 control={form.control}
-                name="startDate"
+                name="start_date"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Start Date</FormLabel>
+                    <FormLabel>Start Date*</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -258,7 +288,7 @@ export function ProjectForm() {
                 name="deadline"
                 render={({ field }) => (
                   <FormItem className="flex flex-col">
-                    <FormLabel>Deadline</FormLabel>
+                    <FormLabel>Deadline*</FormLabel>
                     <Popover>
                       <PopoverTrigger asChild>
                         <FormControl>
@@ -281,14 +311,14 @@ export function ProjectForm() {
               />
             </div>
 
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+            <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
               <FormField
                 control={form.control}
-                name="managerId"
+                name="manager_id"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Project Manager</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <FormLabel>Project Manager*</FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select a project manager" />
@@ -341,7 +371,7 @@ export function ProjectForm() {
                   <FormControl>
                     <Textarea
                       placeholder="Describe the project goals, deliverables, and other important details..."
-                      className="min-h-[120px]"
+                      className="min-h-[100px]"
                       {...field}
                     />
                   </FormControl>
@@ -350,12 +380,21 @@ export function ProjectForm() {
               )}
             />
 
-            <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => router.back()}>
-                Cancel
-              </Button>
+            <div className="flex justify-end gap-3 pt-4">
+              {onCancel && (
+                <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>
+                  Cancel
+                </Button>
+              )}
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? "Creating..." : "Create Project"}
+                {isLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Creating...
+                  </>
+                ) : (
+                  "Create Project"
+                )}
               </Button>
             </div>
           </form>

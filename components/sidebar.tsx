@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   CreditCard,
+  UserCheck,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -50,6 +51,12 @@ const routes = [
     icon: Calendar,
     href: "/dashboard/calendar",
     color: "text-emerald-500",
+  },
+  {
+    label: "Team",
+    icon: UserCheck,
+    href: "/dashboard/team",
+    color: "text-purple-500",
   },
   {
     label: "Invoices",

@@ -10,7 +10,7 @@ export default function ProjectsPage() {
       <div className="flex items-center justify-between">
         <PageHeader heading="Projects" subheading="Manage your agency projects and their details." />
         <Link href="/dashboard/projects/new">
-          <Button>
+          <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
             <Plus className="mr-2 h-4 w-4" />
             Add Project
           </Button>
