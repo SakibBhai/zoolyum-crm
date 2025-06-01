@@ -92,7 +92,7 @@ export const projectsService = {
           c.name as client_name
         FROM projects p
         LEFT JOIN clients c ON p.client_id = c.id
-        ORDER BY p.name ASC
+        ORDER BY p.created_at DESC
       `
       return projects
     } catch (error) {
@@ -101,29 +101,11 @@ export const projectsService = {
     }
   },
 
-  async getByClientId(clientId: string) {
-    try {
-      const projects = await sql`
-        SELECT 
-          p.*,
-          c.name as client_name
-        FROM projects p
-        LEFT JOIN clients c ON p.client_id = c.id
-        WHERE p.client_id = ${clientId}
-        ORDER BY p.created_at DESC
-      `
-      return projects
-    } catch (error) {
-      console.error("Error fetching projects for client:", error)
-      return []
-    }
-  },
-
   async create(project: any) {
     try {
       const [newProject] = await sql`
-        INSERT INTO projects (name, client_id, type, manager_id, start_date, deadline, status, description, progress, budget)
-        VALUES (${project.name}, ${project.client_id}, ${project.type}, ${project.manager_id}, ${project.start_date}, ${project.deadline}, ${project.status || "not_started"}, ${project.description || ""}, ${project.progress || 0}, ${project.budget || null})
+        INSERT INTO projects (name, description, client_id, status, start_date, end_date, budget, team_members)
+        VALUES (${project.name}, ${project.description}, ${project.client_id}, ${project.status || "planning"}, ${project.start_date}, ${project.end_date}, ${project.budget}, ${JSON.stringify(project.team_members || [])})
         RETURNING *
       `
       return newProject
@@ -139,15 +121,13 @@ export const projectsService = {
         UPDATE projects 
         SET 
           name = ${updates.name},
-          client_id = ${updates.client_id},
-          type = ${updates.type},
-          manager_id = ${updates.manager_id},
-          start_date = ${updates.start_date},
-          deadline = ${updates.deadline},
-          status = ${updates.status},
           description = ${updates.description},
-          progress = ${updates.progress},
+          client_id = ${updates.client_id},
+          status = ${updates.status},
+          start_date = ${updates.start_date},
+          end_date = ${updates.end_date},
           budget = ${updates.budget},
+          team_members = ${JSON.stringify(updates.team_members || [])},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
@@ -184,4 +164,147 @@ export const projectsService = {
       throw error
     }
   },
+}
+
+export const teamService = {
+  async getAll() {
+    try {
+      const teamMembers = await sql`
+        SELECT 
+          tm.*,
+          d.name as department_name
+        FROM team_members tm
+        LEFT JOIN departments d ON tm.department_id = d.id
+        WHERE tm.is_active = true
+        ORDER BY tm.name ASC
+      `
+      return teamMembers
+    } catch (error) {
+      console.error("Error fetching team members:", error)
+      return []
+    }
+  },
+
+  async create(teamMember: any) {
+    try {
+      // Generate employee ID
+      const employeeId = `EMP${Date.now().toString().slice(-6)}`
+      
+      const [newTeamMember] = await sql`
+        INSERT INTO team_members (
+          name, email, role, department, phone, bio, skills, 
+          avatar, linkedin, twitter, location, salary, employee_id, 
+          manager, performance_rating, emergency_contact_name, 
+          emergency_contact_relationship, emergency_contact_phone, 
+          emergency_contact_email, is_active
+        )
+        VALUES (
+          ${teamMember.name},
+          ${teamMember.email},
+          ${teamMember.role},
+          ${teamMember.department},
+          ${teamMember.phone || null},
+          ${teamMember.bio || ''},
+          ${JSON.stringify(teamMember.skills || [])},
+          ${teamMember.avatar || '/placeholder-user.jpg'},
+          ${teamMember.linkedin || null},
+          ${teamMember.twitter || null},
+          ${teamMember.location || ''},
+          ${teamMember.salary || null},
+          ${employeeId},
+          ${teamMember.manager || null},
+          ${teamMember.performanceRating || null},
+          ${teamMember.emergencyContact?.name || null},
+          ${teamMember.emergencyContact?.relationship || null},
+          ${teamMember.emergencyContact?.phone || null},
+          ${teamMember.emergencyContact?.email || null},
+          ${teamMember.isActive !== false}
+        )
+        RETURNING *
+      `
+      return newTeamMember
+    } catch (error) {
+      console.error("Error creating team member:", error)
+      throw error
+    }
+  },
+
+  async update(id: string, updates: any) {
+    try {
+      const [updatedTeamMember] = await sql`
+        UPDATE team_members 
+        SET 
+          name = ${updates.name},
+          email = ${updates.email},
+          role = ${updates.role},
+          department = ${updates.department},
+          department_id = ${updates.departmentId},
+          phone = ${updates.phone},
+          bio = ${updates.bio},
+          skills = ${JSON.stringify(updates.skills || [])},
+          avatar = ${updates.avatar},
+          linkedin = ${updates.linkedin},
+          twitter = ${updates.twitter},
+          location = ${updates.location},
+          salary = ${updates.salary},
+          manager = ${updates.manager},
+          performance_rating = ${updates.performanceRating},
+          emergency_contact_name = ${updates.emergencyContact?.name},
+          emergency_contact_relationship = ${updates.emergencyContact?.relationship},
+          emergency_contact_phone = ${updates.emergencyContact?.phone},
+          emergency_contact_email = ${updates.emergencyContact?.email},
+          is_active = ${updates.isActive},
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `
+      return updatedTeamMember
+    } catch (error) {
+      console.error("Error updating team member:", error)
+      throw error
+    }
+  },
+
+  async delete(id: string) {
+    try {
+      // Soft delete by setting is_active to false
+      await sql`
+        UPDATE team_members 
+        SET is_active = false, updated_at = NOW() 
+        WHERE id = ${id}
+      `
+    } catch (error) {
+      console.error("Error deleting team member:", error)
+      throw error
+    }
+  },
+
+  async getById(id: string) {
+    try {
+      const [teamMember] = await sql`
+        SELECT 
+          tm.*,
+          d.name as department_name
+        FROM team_members tm
+        LEFT JOIN departments d ON tm.department_id = d.id
+        WHERE tm.id = ${id}
+      `
+      return teamMember
+    } catch (error) {
+      console.error("Error fetching team member:", error)
+      throw error
+    }
+  },
+
+  async getByEmail(email: string) {
+    try {
+      const [teamMember] = await sql`
+        SELECT * FROM team_members WHERE email = ${email} AND is_active = true
+      `
+      return teamMember
+    } catch (error) {
+      console.error("Error fetching team member by email:", error)
+      throw error
+    }
+  }
 }
