@@ -71,13 +71,19 @@ const formSchema = z.object({
   details: z.string().optional(),
 })
 
-export function TaskForm() {
+interface TaskFormProps {
+  initialData?: any
+  onSubmit?: (data: any) => void
+  mode?: 'create' | 'edit'
+}
+
+export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormProps = {}) {
   const { toast } = useToast()
   const router = useRouter()
   const searchParams = useSearchParams()
   const projectId = searchParams ? searchParams.get("project") : null
 
-  const { addTask, tasks, addTaskDependency } = useTaskContext()
+  const { addTask, tasks, addTaskDependency, updateTask } = useTaskContext()
   const { projects } = useProjectContext()
 
   const [selectedDependencies, setSelectedDependencies] = useState<
@@ -89,7 +95,17 @@ export function TaskForm() {
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
+    defaultValues: initialData ? {
+      name: initialData.name || "",
+      projectId: initialData.projectId || projectId || "",
+      category: initialData.category || "",
+      assignedById: initialData.assignedById || "1",
+      assignedToId: initialData.assignedToId || "",
+      priority: initialData.priority || "medium",
+      status: initialData.status || "to_do",
+      brief: initialData.brief || "",
+      details: initialData.details || "",
+    } : {
       name: "",
       projectId: projectId || "",
       category: "",
@@ -113,7 +129,62 @@ export function TaskForm() {
   const currentProjectId = form.watch("projectId")
   const projectTasks = tasks.filter((task) => task.projectId === currentProjectId)
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
+  function handleSubmit(values: z.infer<typeof formSchema>) {
+    // If onSubmit prop is provided (edit mode), use it
+    if (onSubmit) {
+      // Find the project to get its name
+      const project = projects.find((p) => p.id === values.projectId)
+      const assignedTo = teamMembers.find((m) => m.id === values.assignedToId)?.name || "Unknown"
+
+      if (!project) {
+        toast({
+          title: "Error",
+          description: "Selected project not found.",
+          variant: "destructive",
+        })
+        return
+      }
+
+      // Format the date to string
+      const formattedDueDate = format(values.dueDate, "MMMM d, yyyy")
+
+      // Map status values to proper format
+      const statusMap: Record<string, string> = {
+        to_do: "To Do",
+        in_progress: "In Progress",
+        review: "Review",
+        done: "Done",
+      }
+
+      // Map priority values to proper format
+      const priorityMap: Record<string, string> = {
+        low: "Low",
+        medium: "Medium",
+        high: "High",
+        urgent: "Urgent",
+      }
+
+      onSubmit({
+        name: values.name,
+        project: project.name,
+        projectId: values.projectId,
+        assignedTo: assignedTo,
+        category: values.category,
+        dueDate: formattedDueDate,
+        priority: priorityMap[values.priority],
+        status: statusMap[values.status],
+        brief: values.brief,
+        details: values.details,
+      })
+
+      toast({
+        title: "Success",
+        description: "Task updated successfully.",
+      })
+      return
+    }
+
+    // Original create logic
     // Find the project to get its name
     const project = projects.find((p) => p.id === values.projectId)
     const assignedTo = teamMembers.find((m) => m.id === values.assignedToId)?.name || "Unknown"
@@ -207,7 +278,7 @@ export function TaskForm() {
     <Card>
       <CardContent className="pt-6">
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
             <FormField
               control={form.control}
               name="name"
@@ -512,7 +583,7 @@ export function TaskForm() {
               <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel
               </Button>
-              <Button type="submit">Create Task</Button>
+              <Button type="submit">{mode === 'edit' ? 'Update Task' : 'Create Task'}</Button>
             </div>
           </form>
         </Form>

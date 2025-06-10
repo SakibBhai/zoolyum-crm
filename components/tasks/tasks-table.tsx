@@ -50,7 +50,7 @@ type FilterState = {
 }
 
 export function TasksTable() {
-  const { tasks } = useTaskContext()
+  const { tasks, deleteTask } = useTaskContext()
   const [searchQuery, setSearchQuery] = useState("")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(5)
@@ -673,7 +673,19 @@ export function TasksTable() {
                             <Link href={`/dashboard/tasks/${task.id}/edit`}>Edit task</Link>
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
-                          <DropdownMenuItem className="text-destructive">Delete task</DropdownMenuItem>
+                          <DropdownMenuItem 
+                            className="text-destructive"
+                            onClick={async () => {
+                              if (confirm('Are you sure you want to delete this task? This action cannot be undone.')) {
+                                const result = await deleteTask(task.id)
+                                if (!result.success) {
+                                  alert(`Failed to delete task: ${result.error}`)
+                                }
+                              }
+                            }}
+                          >
+                            Delete task
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>

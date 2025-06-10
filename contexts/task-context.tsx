@@ -7,9 +7,24 @@ import type { Task, StatusHistoryEntry, TaskDependency } from "@/types/task"
 // Initial mock data
 import { initialTasks } from "@/data/tasks"
 
+// UUID generation function
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID()
+  }
+  // Fallback for environments where crypto.randomUUID is not available
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0
+    const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return v.toString(16)
+  })
+}
+
 type TaskContextType = {
   tasks: Task[]
   addTask: (task: Omit<Task, "id" | "statusHistory" | "dependencies">) => string
+  updateTask: (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => void
+  deleteTask: (taskId: string) => Promise<{ success: boolean; error?: string }>
   updateTaskStatus: (taskId: string, newStatus: string, userId: string, userName: string) => void
   getTaskById: (taskId: string) => Task | undefined
   addTaskDependency: (taskId: string, dependsOnTaskId: string, type: TaskDependency["type"]) => void
@@ -32,14 +47,14 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const addTask = (task: Omit<Task, "id" | "statusHistory" | "dependencies">) => {
-    const newTaskId = crypto.randomUUID()
+    const newTaskId = generateUUID()
 
     const newTask: Task = {
       id: newTaskId,
       ...task,
       statusHistory: [
         {
-          id: crypto.randomUUID(),
+          id: generateUUID(),
           date: new Date().toISOString(),
           oldStatus: "",
           newStatus: task.status,
@@ -54,13 +69,53 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     return newTaskId
   }
 
+  const updateTask = (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => {
+    setTasks((prevTasks) =>
+      prevTasks.map((task) => {
+        if (task.id === taskId) {
+          return {
+            ...task,
+            ...updates,
+            updatedAt: new Date().toISOString(),
+          }
+        }
+        return task
+      })
+    )
+  }
+
+  const deleteTask = async (taskId: string) => {
+    try {
+      // Call API to delete from database
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(typeof errorData === 'object' && errorData !== null && 'error' in errorData ? (errorData as { error: string }).error : 'Failed to delete task')
+      }
+
+      // If API call successful, update local state
+      setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId))
+      
+      return { success: true }
+    } catch (error) {
+      console.error('Error deleting task:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  }
+
   const updateTaskStatus = (taskId: string, newStatus: string, userId: string, userName: string) => {
     setTasks((prevTasks) =>
       prevTasks.map((task) => {
         if (task.id === taskId) {
           // Create a new status history entry
           const historyEntry: StatusHistoryEntry = {
-            id: crypto.randomUUID(),
+            id: generateUUID(),
             date: new Date().toISOString(),
             oldStatus: task.status,
             newStatus: newStatus,
@@ -95,7 +150,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
 
     const newDependency: TaskDependency = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       taskId,
       dependsOnTaskId,
       type,
@@ -168,6 +223,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       value={{
         tasks,
         addTask,
+        updateTask,
+        deleteTask,
         updateTaskStatus,
         getTaskById,
         addTaskDependency,

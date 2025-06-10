@@ -126,7 +126,8 @@ export function ProjectForm() {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to create project")
+        const errorData = await response.json()
+        throw new Error(errorData.message || "Failed to create project")
       }
 
       toast({
