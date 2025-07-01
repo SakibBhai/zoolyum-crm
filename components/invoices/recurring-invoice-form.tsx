@@ -43,21 +43,34 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
     (client) => JSON.stringify(client),
   ).map((client) => JSON.parse(client))
 
-  const today = new Date()
-  const defaultStartDate = addDays(today, 1) // Default start date is tomorrow
-
+  const [today, setToday] = useState<Date | undefined>(undefined)
+  const [defaultStartDate, setDefaultStartDate] = useState<Date | undefined>(undefined)
   const [formData, setFormData] = useState<RecurringInvoiceFormData>({
     name: "",
     clientId: clientId || "",
     projectId: projectId || "",
     description: "",
     recurrenceInterval: "monthly",
-    startDate: format(defaultStartDate, "yyyy-MM-dd"),
+    startDate: "", // Initialize with empty string
     taxRate: 10, // Default tax rate
     discount: 0,
     notes: "",
     lineItems: [],
   })
+
+  // Set dates on the client side only
+  useEffect(() => {
+    const currentDate = new Date()
+    setToday(currentDate)
+    const startDate = addDays(currentDate, 1) // Default start date is tomorrow
+    setDefaultStartDate(startDate)
+    
+    // Update formData with the formatted date
+    setFormData(prev => ({
+      ...prev,
+      startDate: format(startDate, "yyyy-MM-dd")
+    }))
+  }, [])
 
   const [showCustomDays, setShowCustomDays] = useState(false)
 

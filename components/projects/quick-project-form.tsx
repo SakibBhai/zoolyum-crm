@@ -59,9 +59,9 @@ const formSchema = z.object({
     .date({
       required_error: "Please select a deadline.",
     })
-    .refine((date) => date > new Date(), {
-      message: "Deadline must be in the future",
-    }),
+    // Remove the server-side validation that uses new Date()
+    // We'll add client-side validation in the form component
+  ,
   status: z.string().default("not_started"),
   description: z.string().optional(),
 })
@@ -78,7 +78,20 @@ interface QuickProjectFormProps {
 }
 
 export function QuickProjectForm({ onSuccess, onCancel, defaultClientId }: QuickProjectFormProps) {
+  const { projects, addProject } = useProjectContext()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [clients, setClients] = useState<Client[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const [isClientModalOpen, setIsClientModalOpen] = useState(false)
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false)
+  
+  // Add state for current date to use in client-side validation
+  const [currentDate, setCurrentDate] = useState<Date | undefined>(undefined)
+  
+  // Set current date on client side only
+  useEffect(() => {
+    setCurrentDate(new Date())
+  }, [])
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingClients, setIsLoadingClients] = useState(true)
   const { toast } = useToast()
@@ -131,6 +144,16 @@ export function QuickProjectForm({ onSuccess, onCancel, defaultClientId }: Quick
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
       setIsLoading(true)
+      
+      // Client-side validation for deadline
+      if (currentDate && values.deadline <= currentDate) {
+        form.setError("deadline", {
+          type: "manual",
+          message: "Deadline must be in the future",
+        })
+        setIsLoading(false)
+        return
+      }
 
       const response = await fetch("/api/projects", {
         method: "POST",

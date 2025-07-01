@@ -40,7 +40,7 @@ export function TaskReportExport({ tasks, visibleColumns, reportName }: TaskRepo
         if (visibleColumns.priority) row.push(task.priority)
         if (visibleColumns.assignedTo) row.push(task.assignedTo)
         if (visibleColumns.project) row.push(task.project)
-        if (visibleColumns.dueDate) row.push(format(new Date(task.dueDate), "yyyy-MM-dd"))
+        if (visibleColumns.dueDate) row.push(task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : "No due date")
         if (visibleColumns.category) row.push(task.category)
         if (visibleColumns.details) row.push(task.details || "")
         return row
@@ -101,7 +101,7 @@ export function TaskReportExport({ tasks, visibleColumns, reportName }: TaskRepo
         if (visibleColumns.priority) row.push(task.priority)
         if (visibleColumns.assignedTo) row.push(task.assignedTo)
         if (visibleColumns.project) row.push(task.project)
-        if (visibleColumns.dueDate) row.push(format(new Date(task.dueDate), "MMM d, yyyy"))
+        if (visibleColumns.dueDate) row.push(task.dueDate ? format(new Date(task.dueDate), "MMM d, yyyy") : "No due date")
         if (visibleColumns.category) row.push(task.category)
         if (visibleColumns.details) row.push(task.details || "")
         return row

@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { neon } = require('@neondatabase/serverless');
 const fs = require('fs');
 
@@ -15,13 +16,13 @@ async function runMigration() {
     const sql = neon(databaseUrl);
     
     // Read the SQL file
-    const sqlFile = 'ALTER TABLE team_members ADD COLUMN IF N.sql';
+    const sqlFile = 'database/schema/projects.sql';
     const sqlContent = fs.readFileSync(sqlFile, 'utf8');
     
     console.log('Executing SQL:', sqlContent.trim());
     
     // Execute the SQL
-    const result = await sql(sqlContent);
+    const result = await sql.query(sqlContent);
     
     console.log('Migration completed successfully!');
     console.log('Result:', result);

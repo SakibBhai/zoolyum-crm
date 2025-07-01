@@ -113,7 +113,12 @@ const contentItems = [
 export function ContentCalendar({ projectId }: { projectId: string }) {
   // In a real app, you would fetch the content calendar for this project based on the ID
   const [activeTab, setActiveTab] = useState("all")
-  const [date, setDate] = useState<Date | undefined>(new Date())
+  const [date, setDate] = useState<Date | undefined>(undefined)
+
+  // Set the date only on the client side
+  useEffect(() => {
+    setDate(new Date())
+  }, [])
 
   const filteredContent =
     activeTab === "all" ? contentItems : contentItems.filter((item) => item.status.toLowerCase() === activeTab)
@@ -278,11 +283,31 @@ export function ContentCalendar({ projectId }: { projectId: string }) {
 
               {date && (
                 <div className="mt-4">
-                  <h4 className="font-medium mb-2">Content for {format(date, "MMMM d, yyyy")}</h4>
-                  {contentItems.filter((item) => item.postDate === format(date, "MMMM d, yyyy")).length > 0 ? (
+                  <h4 className="font-medium mb-2">Content for {
+                    (() => {
+                      try {
+                        return format(date, "MMMM d, yyyy");
+                      } catch (error) {
+                        return "this date";
+                      }
+                    })()
+                  }</h4>
+                  {contentItems.filter((item) => {
+                    try {
+                      return item.postDate === format(date, "MMMM d, yyyy");
+                    } catch (error) {
+                      return false;
+                    }
+                  }).length > 0 ? (
                     <div className="space-y-2">
                       {contentItems
-                        .filter((item) => item.postDate === format(date, "MMMM d, yyyy"))
+                        .filter((item) => {
+                          try {
+                            return item.postDate === format(date, "MMMM d, yyyy");
+                          } catch (error) {
+                            return false;
+                          }
+                        })
                         .map((item) => (
                           <div key={item.id} className="flex items-center gap-2 p-2 rounded-md border">
                             {getPlatformIcon(item.platform)}

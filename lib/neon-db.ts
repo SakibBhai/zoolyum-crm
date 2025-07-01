@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless"
 
 // Use the DATABASE_URL environment variable
-const databaseUrl = process.env.DATABASE_URL
+const databaseUrl = process.env.NEON_NEON_DATABASE_URL
 
 if (!databaseUrl) {
   throw new Error("DATABASE_URL environment variable is not set")
@@ -104,8 +104,8 @@ export const projectsService = {
   async create(project: any) {
     try {
       const [newProject] = await sql`
-        INSERT INTO projects (name, description, client_id, status, start_date, end_date, budget, team_members)
-        VALUES (${project.name}, ${project.description}, ${project.client_id}, ${project.status || "planning"}, ${project.start_date}, ${project.end_date}, ${project.budget}, ${JSON.stringify(project.team_members || [])})
+        INSERT INTO projects (name, description, client_id, status, start_date, end_date, budget, team_members, is_recurring, frequency, recurrence_end)
+        VALUES (${project.name}, ${project.description}, ${project.client_id}, ${project.status || "planning"}, ${project.start_date}, ${project.end_date}, ${project.budget}, ${JSON.stringify(project.team_members || [])}, ${project.is_recurring || false}, ${project.frequency || null}, ${project.recurrence_end || null})
         RETURNING *
       `
       return newProject
@@ -117,25 +117,97 @@ export const projectsService = {
 
   async update(id: string, updates: any) {
     try {
-      const [updatedProject] = await sql`
+      // Get the current project to determine which fields to update
+      const currentProject = await this.getById(id);
+      if (!currentProject) {
+        throw new Error(`Project with id ${id} not found`);
+      }
+      
+      // Build dynamic SET clause for the SQL query
+      let setClauses = [];
+      let params: any = {};
+      
+      // Process each field in updates object
+      for (const [key, value] of Object.entries(updates)) {
+        // Convert camelCase to snake_case for database fields
+        const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
+        
+        // Skip undefined values
+        if (value === undefined) continue;
+        
+        // Handle special cases
+        if (key === 'teamMembers' || key === 'team_members') {
+          setClauses.push(`team_members = $${dbField}`);
+          params[dbField] = JSON.stringify(value || []);
+        } 
+        else if (key === 'recurrencePattern' || key === 'recurrence_pattern') {
+          setClauses.push(`recurrence_pattern = $${dbField}`);
+          params[dbField] = typeof value === 'string' ? value : JSON.stringify(value || {});
+        }
+        else {
+          setClauses.push(`${dbField} = $${dbField}`);
+          params[dbField] = value;
+        }
+      }
+      
+      // Always update the updated_at timestamp
+      setClauses.push(`updated_at = NOW()`);
+      
+      // If no fields to update, just return the current project
+      if (setClauses.length === 0) {
+        return currentProject;
+      }
+      
+      // Build and execute the SQL query
+      const query = `
         UPDATE projects 
-        SET 
-          name = ${updates.name},
-          description = ${updates.description},
-          client_id = ${updates.client_id},
-          status = ${updates.status},
-          start_date = ${updates.start_date},
-          end_date = ${updates.end_date},
-          budget = ${updates.budget},
-          team_members = ${JSON.stringify(updates.team_members || [])},
-          updated_at = NOW()
-        WHERE id = ${id}
+        SET ${setClauses.join(', ')}
+        WHERE id = $id
         RETURNING *
-      `
-      return updatedProject
+      `;
+      
+      const [updatedProject] = await sql.query(query, { ...params, id });
+      return updatedProject;
     } catch (error) {
-      console.error("Error updating project:", error)
-      throw error
+      console.error("Error updating project:", error);
+      throw error;
+    }
+  },
+  
+  /**
+   * Creates a version history entry for a project update
+   * @param {Object} entry - The version history entry data
+   */
+  async createVersionHistoryEntry(entry: {
+    project_id: string;
+    changed_fields: string[];
+    previous_values: string;
+    changed_by: string;
+    timestamp: string;
+  }) {
+    try {
+      const [historyEntry] = await sql`
+        INSERT INTO project_version_history (
+          project_id, 
+          changed_fields, 
+          previous_values, 
+          changed_by, 
+          timestamp
+        )
+        VALUES (
+          ${entry.project_id}, 
+          ${JSON.stringify(entry.changed_fields)}, 
+          ${entry.previous_values}, 
+          ${entry.changed_by}, 
+          ${entry.timestamp}
+        )
+        RETURNING *
+      `;
+      return historyEntry;
+    } catch (error) {
+      console.error("Error creating version history entry:", error);
+      // Log but don't throw to prevent blocking the main update
+      return null;
     }
   },
 

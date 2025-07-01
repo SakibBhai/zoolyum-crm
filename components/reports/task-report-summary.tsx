@@ -15,12 +15,20 @@ import {
   Pie,
   Cell,
 } from "recharts"
+import { useEffect, useState } from "react"
 
 interface TaskReportSummaryProps {
   tasks: Task[]
 }
 
 export function TaskReportSummary({ tasks }: TaskReportSummaryProps) {
+  const [today, setToday] = useState<Date | undefined>(undefined)
+
+  // Set today's date on the client side only
+  useEffect(() => {
+    setToday(new Date())
+  }, [])
+
   // Status distribution
   const statusCounts = tasks.reduce((acc: Record<string, number>, task) => {
     acc[task.status] = (acc[task.status] || 0) + 1
@@ -72,12 +80,11 @@ export function TaskReportSummary({ tasks }: TaskReportSummaryProps) {
   // High priority tasks
   const highPriorityTasks = tasks.filter((task) => task.priority === "High" || task.priority === "Urgent").length
 
-  // Overdue tasks (assuming today's date)
-  const today = new Date()
-  const overdueTasks = tasks.filter((task) => {
+  // Overdue tasks (only calculate if today is available)
+  const overdueTasks = today ? tasks.filter((task) => {
     const dueDate = new Date(task.dueDate)
     return dueDate < today && task.status !== "Completed"
-  }).length
+  }).length : 0
 
   return (
     <div className="space-y-6">

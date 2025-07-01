@@ -96,8 +96,15 @@ export function RecurringInvoiceDetails({ id }: RecurringInvoiceDetailsProps) {
     })
   }
 
-  // Check if next generation date is today or in the past
-  const isOverdue = new Date(template.nextGenerationDate) <= new Date()
+  // Use state to handle date on client side only
+  const [currentDate, setCurrentDate] = useState<Date | undefined>(undefined)
+  
+  useEffect(() => {
+    setCurrentDate(new Date())
+  }, [])
+
+  // Check if next generation date is today or in the past (only if currentDate is available)
+  const isOverdue = currentDate ? new Date(template.nextGenerationDate) <= currentDate : false
 
   return (
     <div className="space-y-6">
@@ -174,11 +181,11 @@ export function RecurringInvoiceDetails({ id }: RecurringInvoiceDetailsProps) {
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Created</h3>
-                  <p>{format(new Date(template.createdAt), "MMMM d, yyyy")}</p>
+                  <p>{template.createdAt ? format(new Date(template.createdAt), "MMMM d, yyyy") : "Unknown date"}</p>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-muted-foreground">Last Updated</h3>
-                  <p>{format(new Date(template.updatedAt), "MMMM d, yyyy")}</p>
+                  <p>{template.updatedAt ? format(new Date(template.updatedAt), "MMMM d, yyyy") : "Unknown date"}</p>
                 </div>
               </div>
 
@@ -235,7 +242,7 @@ export function RecurringInvoiceDetails({ id }: RecurringInvoiceDetailsProps) {
                   <div className="flex items-center">
                     {isOverdue && template.active && <AlertCircle className="h-4 w-4 text-amber-500 mr-1" />}
                     <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
-                    <span>{format(new Date(template.nextGenerationDate), "MMMM d, yyyy")}</span>
+                    <span>{template.nextGenerationDate ? format(new Date(template.nextGenerationDate), "MMMM d, yyyy") : "Not scheduled"}</span>
                     {isOverdue && template.active && (
                       <Badge variant="outline" className="ml-2 text-amber-500 border-amber-200 bg-amber-50">
                         Due now
@@ -248,7 +255,7 @@ export function RecurringInvoiceDetails({ id }: RecurringInvoiceDetailsProps) {
                     <h3 className="text-sm font-medium text-muted-foreground">Last Generated</h3>
                     <div className="flex items-center">
                       <Clock className="h-4 w-4 mr-1 text-muted-foreground" />
-                      <span>{format(new Date(template.lastGeneratedDate), "MMMM d, yyyy")}</span>
+                      <span>{template.lastGeneratedDate ? format(new Date(template.lastGeneratedDate), "MMMM d, yyyy") : "Never"}</span>
                     </div>
                   </div>
                 )}
@@ -257,7 +264,7 @@ export function RecurringInvoiceDetails({ id }: RecurringInvoiceDetailsProps) {
                     <h3 className="text-sm font-medium text-muted-foreground">End Date</h3>
                     <div className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1 text-muted-foreground" />
-                      <span>{format(new Date(template.endDate), "MMMM d, yyyy")}</span>
+                      <span>{template.endDate ? format(new Date(template.endDate), "MMMM d, yyyy") : "No end date"}</span>
                     </div>
                   </div>
                 )}
@@ -270,7 +277,7 @@ export function RecurringInvoiceDetails({ id }: RecurringInvoiceDetailsProps) {
                     <p className="font-medium">Automatic Generation</p>
                     <p>
                       This template is active and will automatically generate invoices according to the schedule. The
-                      next invoice will be generated on {format(new Date(template.nextGenerationDate), "MMMM d, yyyy")}.
+                      next invoice will be generated on {template.nextGenerationDate ? format(new Date(template.nextGenerationDate), "MMMM d, yyyy") : "the scheduled date"}.
                     </p>
                   </div>
                 </div>

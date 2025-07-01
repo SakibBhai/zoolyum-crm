@@ -112,7 +112,7 @@ export function TaskReportPreview({ tasks, visibleColumns, reportName }: TaskRep
                   )}
                   {visibleColumns.assignedTo && <TableCell>{task.assignedTo}</TableCell>}
                   {visibleColumns.project && <TableCell>{task.project}</TableCell>}
-                  {visibleColumns.dueDate && <TableCell>{format(new Date(task.dueDate), "MMM d, yyyy")}</TableCell>}
+                  {visibleColumns.dueDate && <TableCell>{task.dueDate ? format(new Date(task.dueDate), "MMM d, yyyy") : "No due date"}</TableCell>}
                   {visibleColumns.category && <TableCell>{task.category}</TableCell>}
                   {visibleColumns.details && (
                     <TableCell className="max-w-xs truncate">{task.details || "No details provided"}</TableCell>

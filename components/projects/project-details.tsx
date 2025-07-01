@@ -1,16 +1,21 @@
 "use client"
 
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { FolderKanban, Calendar, User, Building, FileText, DollarSign } from "lucide-react"
+import { FolderKanban, Calendar, User, Building, FileText, DollarSign, Edit, X } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import Link from "next/link"
 import { useProjectContext } from "@/contexts/project-context"
 import { ProjectStatusSelect } from "./project-status-select"
 import { ProjectStatusHistory } from "./project-status-history"
+import { format } from "date-fns"
+import { Button } from "@/components/ui/button"
+import { EditProjectModule } from "./edit-project-module"
 
 export function ProjectDetails({ id }: { id: string }) {
   const { getProjectById } = useProjectContext()
   const project = getProjectById(id)
+  const [isEditing, setIsEditing] = useState(false)
 
   if (!project) {
     return (
@@ -19,9 +24,35 @@ export function ProjectDetails({ id }: { id: string }) {
       </div>
     )
   }
+  
+  if (isEditing) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold">Edit Project</h2>
+          <Button variant="ghost" size="icon" onClick={() => setIsEditing(false)}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+        <EditProjectModule projectId={id} onClose={() => setIsEditing(false)} />
+      </div>
+    )
+  }
 
   return (
-    <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
+    <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex items-center gap-1" 
+          onClick={() => setIsEditing(true)}
+        >
+          <Edit className="h-4 w-4" />
+          Edit Project
+        </Button>
+      </div>
+      <div className="grid gap-6 grid-cols-1 md:grid-cols-2">
       <Card>
         <CardHeader>
           <CardTitle>Project Information</CardTitle>
@@ -78,7 +109,16 @@ export function ProjectDetails({ id }: { id: string }) {
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <div>
               <p className="text-sm font-medium">Start Date</p>
-              <p>{project.startDate}</p>
+              <p>
+                {project.startDate && project.startDate !== "" ? 
+                  (() => {
+                    try {
+                      return format(new Date(project.startDate), "MMM d, yyyy");
+                    } catch (error) {
+                      return "Invalid date";
+                    }
+                  })() : "Not set"}
+              </p>
             </div>
           </div>
 
@@ -86,7 +126,16 @@ export function ProjectDetails({ id }: { id: string }) {
             <Calendar className="h-4 w-4 text-muted-foreground" />
             <div>
               <p className="text-sm font-medium">Deadline</p>
-              <p>{project.deadline}</p>
+              <p>
+                {project.deadline && project.deadline !== "" ? 
+                  (() => {
+                    try {
+                      return format(new Date(project.deadline), "MMM d, yyyy");
+                    } catch (error) {
+                      return "Invalid date";
+                    }
+                  })() : "No deadline"}
+              </p>
             </div>
           </div>
 
@@ -162,6 +211,7 @@ export function ProjectDetails({ id }: { id: string }) {
       <Card className="md:col-span-2">
         <ProjectStatusHistory history={project.statusHistory || []} />
       </Card>
+      </div>
     </div>
   )
 }

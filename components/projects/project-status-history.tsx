@@ -60,7 +60,15 @@ export function ProjectStatusHistory({ history }: ProjectStatusHistoryProps) {
                     <span className="font-medium">{entry.newStatus}</span>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    Changed by {entry.userName} on {format(parseISO(entry.date), "MMM d, yyyy 'at' h:mm a")}
+                    Changed by {entry.userName} on {
+                      (() => {
+                        try {
+                          return format(parseISO(entry.date), "MMM d, yyyy 'at' h:mm a");
+                        } catch (error) {
+                          return "an unknown date";
+                        }
+                      })()  
+                    }
                   </p>
                 </div>
               </div>

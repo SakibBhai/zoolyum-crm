@@ -8,10 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Pencil } from "lucide-react"
 import Link from "next/link"
 
-export default function ProjectPage({
+export default async function ProjectPage({
+
   params,
   searchParams,
-}: { params: { id: string }; searchParams: { tab?: string } }) {
+}: { params: Promise<{ id: string }>; searchParams: { tab?: string } }) {
+  const { id } = await params;
   // Default to 'details' tab if none specified
   const defaultTab = searchParams.tab || "details"
 
@@ -30,7 +32,7 @@ export default function ProjectPage({
             subheading={`View and manage project information for ID: ${params.id}`}
           />
         </div>
-        <Link href={`/dashboard/projects/${params.id}/edit`}>
+        <Link href={`/dashboard/projects/${id}/edit`}>
           <Button variant="outline">
             <Pencil className="mr-2 h-4 w-4" />
             Edit Project

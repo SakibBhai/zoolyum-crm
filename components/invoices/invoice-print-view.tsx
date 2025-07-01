@@ -53,11 +53,11 @@ export function InvoicePrintView({ invoice, onRender }: InvoicePrintViewProps) {
         <div className="text-right">
           <div className="mb-4">
             <p className="font-semibold">Invoice Date:</p>
-            <p>{format(new Date(invoice.issueDate), "MMMM d, yyyy")}</p>
+            <p>{invoice.issueDate ? format(new Date(invoice.issueDate), "MMMM d, yyyy") : "Not set"}</p>
           </div>
           <div className="mb-4">
             <p className="font-semibold">Due Date:</p>
-            <p>{format(new Date(invoice.dueDate), "MMMM d, yyyy")}</p>
+            <p>{invoice.dueDate ? format(new Date(invoice.dueDate), "MMMM d, yyyy") : "No due date"}</p>
           </div>
           {invoice.projectName && (
             <div>

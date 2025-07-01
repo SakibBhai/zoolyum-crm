@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { PageHeader } from "@/components/page-header"
 import { TeamMemberCard } from "@/components/team/team-member-card"
 import { TeamStatsComponent } from "@/components/team/team-stats"
@@ -25,11 +25,15 @@ export default function TeamPage() {
   }
 
   const handleDepartmentCreate = (departmentData: Omit<Department, 'id' | 'createdAt' | 'updatedAt'>) => {
+    // Generate timestamps in a useEffect-safe way
+    const timestamp = typeof window !== 'undefined' ? new Date().toISOString() : '';
+    const uniqueId = `dept-${typeof window !== 'undefined' ? Date.now() : '0'}`;
+    
     const newDepartment: Department = {
       ...departmentData,
-      id: `dept-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      id: uniqueId,
+      createdAt: timestamp,
+      updatedAt: timestamp
     }
     
     setLocalDepartments(prev => [...prev, newDepartment])

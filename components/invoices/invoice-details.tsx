@@ -113,8 +113,8 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
             // Render a simplified version of the invoice
             container.innerHTML = `
               <h1>INVOICE: ${invoice.invoiceNumber}</h1>
-              <p>Date: ${format(new Date(invoice.issueDate), "MMMM d, yyyy")}</p>
-              <p>Due Date: ${format(new Date(invoice.dueDate), "MMMM d, yyyy")}</p>
+              <p>Date: ${invoice.issueDate ? format(new Date(invoice.issueDate), "MMMM d, yyyy") : "Not set"}</p>
+              <p>Due Date: ${invoice.dueDate ? format(new Date(invoice.dueDate), "MMMM d, yyyy") : "No due date"}</p>
               <h2>Bill To:</h2>
               <p>${invoice.recipientInfo.name}<br>
               ${invoice.recipientInfo.email}</p>
@@ -271,7 +271,7 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold">{invoice.invoiceNumber}</h1>
-          <p className="text-muted-foreground">Created on {format(new Date(invoice.createdAt), "MMMM d, yyyy")}</p>
+          <p className="text-muted-foreground">Created on {invoice.createdAt ? format(new Date(invoice.createdAt), "MMMM d, yyyy") : "unknown date"}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge className={`${getStatusColor(invoice.status)} text-white`}>{invoice.status}</Badge>
@@ -319,11 +319,11 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Issue Date:</span>
-                      <span>{format(new Date(invoice.issueDate), "MMMM d, yyyy")}</span>
+                      <span>{invoice.issueDate ? format(new Date(invoice.issueDate), "MMMM d, yyyy") : "Not set"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Due Date:</span>
-                      <span>{format(new Date(invoice.dueDate), "MMMM d, yyyy")}</span>
+                      <span>{invoice.dueDate ? format(new Date(invoice.dueDate), "MMMM d, yyyy") : "No due date"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Status:</span>
@@ -464,7 +464,7 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Due Date:</span>
-                      <span>{format(new Date(invoice.dueDate), "MMMM d, yyyy")}</span>
+                      <span>{invoice.dueDate ? format(new Date(invoice.dueDate), "MMMM d, yyyy") : "No due date"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total Due:</span>

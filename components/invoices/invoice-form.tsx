@@ -89,8 +89,15 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
     (client) => JSON.stringify(client),
   ).map((client) => JSON.parse(client))
 
-  const today = new Date()
-  const defaultDueDate = addDays(today, 14) // Default due date is 2 weeks from today
+  const [today, setToday] = useState<Date | undefined>(undefined)
+  const [defaultDueDate, setDefaultDueDate] = useState<Date | undefined>(undefined)
+  
+  // Set dates on the client side only
+  useEffect(() => {
+    const currentDate = new Date()
+    setToday(currentDate)
+    setDefaultDueDate(addDays(currentDate, 14)) // Default due date is 2 weeks from today
+  }, [])
 
   const [activeTab, setActiveTab] = useState("details")
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -337,10 +344,10 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
         </div>
         <div className="text-right">
           <div className="mb-2">
-            <span className="font-bold">Invoice Date:</span> {format(new Date(formValues.issueDate), "MMMM d, yyyy")}
+            <span className="font-bold">Invoice Date:</span> {formValues.issueDate ? format(new Date(formValues.issueDate), "MMMM d, yyyy") : "Not set"}
           </div>
           <div className="mb-2">
-            <span className="font-bold">Due Date:</span> {format(new Date(formValues.dueDate), "MMMM d, yyyy")}
+            <span className="font-bold">Due Date:</span> {formValues.dueDate ? format(new Date(formValues.dueDate), "MMMM d, yyyy") : "No due date"}
           </div>
           {formValues.projectId && (
             <div className="mb-2">
@@ -977,11 +984,11 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
                     )}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Issue Date:</span>
-                      <span>{format(new Date(formValues.issueDate), "MMM d, yyyy")}</span>
+                      <span>{formValues.issueDate ? format(new Date(formValues.issueDate), "MMM d, yyyy") : "Not set"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Due Date:</span>
-                      <span>{format(new Date(formValues.dueDate), "MMM d, yyyy")}</span>
+                      <span>{formValues.dueDate ? format(new Date(formValues.dueDate), "MMM d, yyyy") : "No due date"}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Items:</span>

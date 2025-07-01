@@ -16,6 +16,12 @@ export function RecurringInvoiceList() {
   const { recurringInvoices, toggleRecurringInvoiceStatus, generateInvoiceFromTemplate } = useRecurringInvoiceContext()
   const [searchQuery, setSearchQuery] = useState("")
   const [intervalFilter, setIntervalFilter] = useState<string>("all")
+  const [currentDate, setCurrentDate] = useState<Date | undefined>(undefined)
+  
+  // Set current date on client side only
+  useEffect(() => {
+    setCurrentDate(new Date())
+  }, [])
 
   // Filter templates based on search query and interval filter
   const filteredTemplates = recurringInvoices.filter((template) => {
@@ -130,8 +136,8 @@ export function RecurringInvoiceList() {
                 const taxAmount = (subtotal * template.taxRate) / 100
                 const total = subtotal + taxAmount - template.discount
 
-                // Check if next generation date is today or in the past
-                const isOverdue = new Date(template.nextGenerationDate) <= new Date()
+                // Check if next generation date is today or in the past (only if currentDate is available)
+                const isOverdue = currentDate ? new Date(template.nextGenerationDate) <= currentDate : false
 
                 return (
                   <TableRow key={template.id}>
@@ -143,7 +149,7 @@ export function RecurringInvoiceList() {
                       <div className="flex items-center">
                         {isOverdue && template.active && <AlertCircle className="h-4 w-4 text-amber-500 mr-1" />}
                         <Calendar className="h-4 w-4 text-muted-foreground mr-1" />
-                        {format(new Date(template.nextGenerationDate), "MMM d, yyyy")}
+                        {template.nextGenerationDate ? format(new Date(template.nextGenerationDate), "MMM d, yyyy") : "Not scheduled"}
                       </div>
                     </TableCell>
                     <TableCell>${total.toFixed(2)}</TableCell>

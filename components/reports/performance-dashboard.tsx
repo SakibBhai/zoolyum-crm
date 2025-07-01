@@ -16,15 +16,20 @@ import { performanceData } from "@/data/performance-data"
 
 export function PerformanceDashboard() {
   const [activeTab, setActiveTab] = useState("overview")
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined)
   const [timeframe, setTimeframe] = useState("30days")
   const [isRefreshing, setIsRefreshing] = useState(false)
 
+  // Set the date only on the client side
+  useEffect(() => {
+    setSelectedDate(new Date())
+  }, [])
+
   // Get the month name for display
-  const currentMonth = format(selectedDate, "MMMM yyyy")
+  const currentMonth = selectedDate ? format(selectedDate, "MMMM yyyy") : ""
 
   // Filter data based on selected date, with a check for empty data
-  const filteredData = performanceData.filter((item) => {
+  const filteredData = selectedDate ? performanceData.filter((item) => {
     if (!item.date) return false
     const itemDate = new Date(item.date)
     const startDate = subMonths(selectedDate, 1)

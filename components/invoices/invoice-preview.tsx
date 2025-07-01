@@ -46,10 +46,10 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
         </div>
         <div className="text-right">
           <div className="mb-2">
-            <span className="font-bold">Invoice Date:</span> {format(new Date(invoice.issueDate), "MMMM d, yyyy")}
+            <span className="font-bold">Invoice Date:</span> {invoice.issueDate ? format(new Date(invoice.issueDate), "MMMM d, yyyy") : "Not set"}
           </div>
           <div className="mb-2">
-            <span className="font-bold">Due Date:</span> {format(new Date(invoice.dueDate), "MMMM d, yyyy")}
+            <span className="font-bold">Due Date:</span> {invoice.dueDate ? format(new Date(invoice.dueDate), "MMMM d, yyyy") : "No due date"}
           </div>
           {invoice.projectId && (
             <div className="mb-2">
@@ -125,7 +125,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
 
       <div className="mt-8 text-center text-gray-500">
         <p>Thank you for your business!</p>
-        <p className="mt-2">Payment is due by {format(new Date(invoice.dueDate), "MMMM d, yyyy")}</p>
+        <p className="mt-2">Payment is due by {invoice.dueDate ? format(new Date(invoice.dueDate), "MMMM d, yyyy") : "the due date"}</p>
       </div>
     </div>
   )

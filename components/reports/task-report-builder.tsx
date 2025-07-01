@@ -106,6 +106,9 @@ export function TaskReportBuilder() {
 
   // Handle date preset changes
   const handleDatePresetChange = (preset: string) => {
+    // Use client-side date calculation
+    if (typeof window === 'undefined') return;
+    
     const today = new Date()
     let newRange: DateRange = { from: undefined, to: undefined }
 

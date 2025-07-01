@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Project {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name               String
+  description        String?
+  clientId           String?              @map("client_id") @db.Uuid
+  status             String?              @default("planning")
+  startDate          DateTime?            @map("start_date") @db.Date
+  endDate            DateTime?            @map("end_date") @db.Date
+  budget             Decimal?             @db.Decimal(10, 2)
+  teamMembers        Json?                @default("[]") @map("team_members") @db.JsonB
+  isRecurring        Boolean              @default(false) @map("is_recurring")
+  frequency          String?
+  recurrenceEnd      DateTime?            @map("recurrence_end") @db.Date
+  recurrencePattern  Json?                @map("recurrence_pattern") @db.JsonB
+  versionHistoryId   String?              @map("version_history_id") @db.Uuid
+  lastModified       DateTime             @default(now()) @map("last_modified") @db.Timestamptz
+  createdAt          DateTime             @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt          DateTime             @default(now()) @map("updated_at") @db.Timestamptz
+  client             Client?              @relation(fields: [clientId], references: [id])
+  versionHistory     ProjectVersionHistory[] @relation("ProjectToVersionHistory")
+
+  @@map("projects")
+}
+
+model ProjectVersionHistory {
+  id             String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  projectId      String   @map("project_id") @db.Uuid
+  changedFields  Json     @map("changed_fields") @db.JsonB
+  previousValues Json     @map("previous_values") @db.JsonB
+  changedBy      String   @map("changed_by")
+  timestamp      DateTime @default(now()) @db.Timestamptz
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz
+  project        Project  @relation("ProjectToVersionHistory", fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId], name: "idx_project_version_history_project_id")
+  @@map("project_version_history")
+}
+
+model Client {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String
+  industry    String?
+  contactName String?   @map("contact_name")
+  email       String?
+  phone       String?
+  status      String?   @default("active")
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz
+  updatedAt   DateTime  @default(now()) @map("updated_at") @db.Timestamptz
+  projects    Project[]
+
+  @@map("clients")
+}

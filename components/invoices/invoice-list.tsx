@@ -224,10 +224,10 @@ export function InvoiceList() {
                       </TableCell>
                       <TableCell>{invoice.clientName}</TableCell>
                       <TableCell className="hidden md:table-cell">
-                        {format(new Date(invoice.issueDate), "MMM d, yyyy")}
+                        {invoice.issueDate ? format(new Date(invoice.issueDate), "MMM d, yyyy") : "Not set"}
                       </TableCell>
                       <TableCell className="hidden md:table-cell">
-                        {format(new Date(invoice.dueDate), "MMM d, yyyy")}
+                        {invoice.dueDate ? format(new Date(invoice.dueDate), "MMM d, yyyy") : "No due date"}
                       </TableCell>
                       <TableCell className="text-right font-medium">${invoice.total.toFixed(2)}</TableCell>
                       <TableCell>{getStatusBadge(invoice.status)}</TableCell>

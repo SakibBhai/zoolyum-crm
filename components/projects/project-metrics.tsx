@@ -5,6 +5,7 @@ import { ProjectBudgetChart } from "./project-budget-chart"
 import { ProjectProgressChart } from "./project-progress-chart"
 import { useProjectContext } from "@/contexts/project-context"
 import { differenceInDays, parseISO } from "date-fns"
+import { useEffect, useState } from "react"
 
 interface ProjectMetricsProps {
   projectId: string
@@ -13,11 +14,16 @@ interface ProjectMetricsProps {
 export function ProjectMetrics({ projectId }: ProjectMetricsProps) {
   const { getProjectById } = useProjectContext()
   const project = getProjectById(projectId)
+  const [today, setToday] = useState<Date | undefined>(undefined)
 
-  if (!project) return null
+  // Set today's date on the client side only
+  useEffect(() => {
+    setToday(new Date())
+  }, [])
+
+  if (!project || !today) return null
 
   // Calculate days remaining
-  const today = new Date()
   const deadline = parseISO(project.deadline.split(" ")[0])
   const daysRemaining = differenceInDays(deadline, today)
 

@@ -162,7 +162,16 @@ export function ProjectsTable() {
                   </TableCell>
                   <TableCell>{project.client_name}</TableCell>
                   <TableCell>{project.type}</TableCell>
-                  <TableCell>{format(new Date(project.deadline), "MMM d, yyyy")}</TableCell>
+                  <TableCell>
+                    {project.deadline && project.deadline !== "" ? 
+                      (() => {
+                        try {
+                          return format(new Date(project.deadline), "MMM d, yyyy");
+                        } catch (error) {
+                          return "Invalid date";
+                        }
+                      })() : "No deadline"}
+                  </TableCell>
                   <TableCell>
                     <Badge className={getStatusColor(project.status)} variant="outline">
                       {formatStatus(project.status)}

@@ -252,11 +252,16 @@ const contentItems = [
 
 export function ContentCalendarView() {
   const [activeTab, setActiveTab] = useState("all")
-  const [date, setDate] = useState<Date | undefined>(new Date())
+  const [date, setDate] = useState<Date | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState("")
   const [platformFilter, setPlatformFilter] = useState("all")
   const [currentPage, setCurrentPage] = useState(1)
   const [itemsPerPage, setItemsPerPage] = useState(5)
+
+  // Set the date only on the client side
+  useEffect(() => {
+    setDate(new Date())
+  }, [])
 
   let filteredContent = contentItems
 

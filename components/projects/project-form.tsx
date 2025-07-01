@@ -2,13 +2,15 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
+import { Resolver } from "react-hook-form"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
+import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { CalendarIcon } from "lucide-react"
@@ -61,7 +63,27 @@ const formSchema = z.object({
   }),
   status: z.string(),
   description: z.string().optional(),
-})
+  isRecurring: z.boolean().default(false),
+  frequency: z.string().optional(),
+  recurrenceEnd: z.date().optional(),
+}).superRefine((data, ctx) => {
+  if (data.isRecurring) {
+    if (!data.frequency) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Frequency is required for recurring projects.",
+        path: ["frequency"],
+      });
+    }
+    if (!data.recurrenceEnd) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Recurrence end date is required for recurring projects.",
+        path: ["recurrenceEnd"],
+      });
+    }
+  }
+});
 
 export function ProjectForm() {
   const { toast } = useToast()
@@ -69,7 +91,7 @@ export function ProjectForm() {
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([])
   const [isLoading, setIsLoading] = useState(false)
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<z.infer<typeof formSchema>>({    
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -78,6 +100,9 @@ export function ProjectForm() {
       managerId: "",
       status: "not_started",
       description: "",
+      isRecurring: false,
+      frequency: undefined,
+      recurrenceEnd: undefined,
     },
   })
 
@@ -122,6 +147,9 @@ export function ProjectForm() {
           deadline: values.deadline.toISOString().split("T")[0],
           status: values.status,
           description: values.description || "",
+          is_recurring: values.isRecurring,
+          frequency: values.frequency,
+          recurrence_end: values.recurrenceEnd ? values.recurrenceEnd.toISOString().split("T")[0] : null,
         }),
       })
 
@@ -209,12 +237,12 @@ export function ProjectForm() {
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select project type" />
+                          <SelectValue placeholder="Select a project type" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
                         {projectTypes.map((type) => (
-                          <SelectItem key={type} value={type.toLowerCase().replace(/\s+/g, "_")}>
+                          <SelectItem key={type} value={type}>
                             {type}
                           </SelectItem>
                         ))}
@@ -238,7 +266,10 @@ export function ProjectForm() {
                         <FormControl>
                           <Button
                             variant={"outline"}
-                            className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
                           >
                             {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -246,7 +277,12 @@ export function ProjectForm() {
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          initialFocus
+                        />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />
@@ -265,7 +301,10 @@ export function ProjectForm() {
                         <FormControl>
                           <Button
                             variant={"outline"}
-                            className={cn("w-full pl-3 text-left font-normal", !field.value && "text-muted-foreground")}
+                            className={cn(
+                              "w-full pl-3 text-left font-normal",
+                              !field.value && "text-muted-foreground"
+                            )}
                           >
                             {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
                             <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
@@ -273,7 +312,12 @@ export function ProjectForm() {
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={field.onChange}
+                          initialFocus
+                        />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />
@@ -325,6 +369,7 @@ export function ProjectForm() {
                         <SelectItem value="in_progress">In Progress</SelectItem>
                         <SelectItem value="completed">Completed</SelectItem>
                         <SelectItem value="on_hold">On Hold</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -332,6 +377,91 @@ export function ProjectForm() {
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="isRecurring"
+              render={({ field }) => (
+                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                  <div className="space-y-0.5">
+                    <FormLabel className="text-base">Recurring Project</FormLabel>
+                    <FormDescription>
+                      Set this project to recur automatically.
+                    </FormDescription>
+                  </div>
+                  <FormControl>
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  </FormControl>
+                </FormItem>
+              )}
+            />
+
+            {form.watch("isRecurring") && (
+              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="frequency"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Recurrence Frequency</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select frequency" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="daily">Daily</SelectItem>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                          <SelectItem value="quarterly">Quarterly</SelectItem>
+                          <SelectItem value="annually">Annually</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="recurrenceEnd"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Recurrence End Date</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant={"outline"}
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value}
+                            onSelect={field.onChange}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            )}
 
             <FormField
               control={form.control}
