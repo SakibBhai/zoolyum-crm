@@ -1,1 +1,0 @@
-ALTER TABLE team_members ADD COLUMN IF NOT EXISTS skills JSONB DEFAULT '[]'::jsonb;

@@ -2,15 +2,13 @@
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
-import { Resolver } from "react-hook-form"
 import { z } from "zod"
 import { Button } from "@/components/ui/button"
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent } from "@/components/ui/card"
-import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
 import { CalendarIcon } from "lucide-react"
@@ -20,40 +18,12 @@ import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
 
-// Mock data for team members
-const teamMembers = [
-  { id: "1", name: "Sarah Johnson" },
-  { id: "2", name: "Michael Chen" },
-  { id: "3", name: "Emily Rodriguez" },
-  { id: "4", name: "David Kim" },
-  { id: "5", name: "Jessica Lee" },
-]
-
-const projectTypes = [
-  "Social Media Management",
-  "Branding",
-  "Website Design",
-  "Content Marketing",
-  "Email Marketing",
-  "SEO",
-  "PPC",
-  "Video Production",
-  "Graphic Design",
-  "Other",
-]
-
 const formSchema = z.object({
   name: z.string().min(2, {
     message: "Project name must be at least 2 characters.",
   }),
   clientId: z.string({
     required_error: "Please select a client.",
-  }),
-  type: z.string({
-    required_error: "Please select a project type.",
-  }),
-  managerId: z.string({
-    required_error: "Please select a project manager.",
   }),
   startDate: z.date({
     required_error: "Please select a start date.",
@@ -63,26 +33,9 @@ const formSchema = z.object({
   }),
   status: z.string(),
   description: z.string().optional(),
-  isRecurring: z.boolean().default(false),
-  frequency: z.string().optional(),
-  recurrenceEnd: z.date().optional(),
-}).superRefine((data, ctx) => {
-  if (data.isRecurring) {
-    if (!data.frequency) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Frequency is required for recurring projects.",
-        path: ["frequency"],
-      });
-    }
-    if (!data.recurrenceEnd) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "Recurrence end date is required for recurring projects.",
-        path: ["recurrenceEnd"],
-      });
-    }
-  }
+  estimatedBudget: z.number().min(0, {
+    message: "Budget must be a positive number.",
+  }).optional(),
 });
 
 export function ProjectForm() {
@@ -96,13 +49,11 @@ export function ProjectForm() {
     defaultValues: {
       name: "",
       clientId: "",
-      type: "",
-      managerId: "",
-      status: "not_started",
+      startDate: new Date(),
+      deadline: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+      status: "draft",
       description: "",
-      isRecurring: false,
-      frequency: undefined,
-      recurrenceEnd: undefined,
+      estimatedBudget: 0,
     },
   })
 
@@ -141,21 +92,17 @@ export function ProjectForm() {
         body: JSON.stringify({
           name: values.name,
           client_id: values.clientId,
-          type: values.type,
-          manager_id: values.managerId,
           start_date: values.startDate.toISOString().split("T")[0],
-          deadline: values.deadline.toISOString().split("T")[0],
+          end_date: values.deadline.toISOString().split("T")[0],
           status: values.status,
           description: values.description || "",
-          is_recurring: values.isRecurring,
-          frequency: values.frequency,
-          recurrence_end: values.recurrenceEnd ? values.recurrenceEnd.toISOString().split("T")[0] : null,
+          estimated_budget: values.estimatedBudget || 0,
         }),
       })
 
       if (!response.ok) {
         const errorData = await response.json()
-        throw new Error(errorData.message || "Failed to create project")
+        throw new Error(errorData.message || errorData.error || "Failed to create project")
       }
 
       toast({
@@ -230,22 +177,21 @@ export function ProjectForm() {
 
               <FormField
                 control={form.control}
-                name="type"
+                name="status"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Project Type</FormLabel>
+                    <FormLabel>Status</FormLabel>
                     <Select onValueChange={field.onChange} defaultValue={field.value}>
                       <FormControl>
                         <SelectTrigger>
-                          <SelectValue placeholder="Select a project type" />
+                          <SelectValue placeholder="Select a status" />
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {projectTypes.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="on_hold">On Hold</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -326,142 +272,24 @@ export function ProjectForm() {
               />
             </div>
 
-            <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="managerId"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Project Manager</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select a project manager" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {teamMembers.map((member) => (
-                          <SelectItem key={member.id} value={member.id}>
-                            {member.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select project status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="not_started">Not Started</SelectItem>
-                        <SelectItem value="in_progress">In Progress</SelectItem>
-                        <SelectItem value="completed">Completed</SelectItem>
-                        <SelectItem value="on_hold">On Hold</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
             <FormField
               control={form.control}
-              name="isRecurring"
+              name="estimatedBudget"
               render={({ field }) => (
-                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                  <div className="space-y-0.5">
-                    <FormLabel className="text-base">Recurring Project</FormLabel>
-                    <FormDescription>
-                      Set this project to recur automatically.
-                    </FormDescription>
-                  </div>
+                <FormItem>
+                  <FormLabel>Estimated Budget</FormLabel>
                   <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      {...field}
+                      onChange={(e) => field.onChange(e.target.value ? parseFloat(e.target.value) : 0)}
                     />
                   </FormControl>
+                  <FormMessage />
                 </FormItem>
               )}
             />
-
-            {form.watch("isRecurring") && (
-              <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
-                <FormField
-                  control={form.control}
-                  name="frequency"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Recurrence Frequency</FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select frequency" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="daily">Daily</SelectItem>
-                          <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="monthly">Monthly</SelectItem>
-                          <SelectItem value="quarterly">Quarterly</SelectItem>
-                          <SelectItem value="annually">Annually</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="recurrenceEnd"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Recurrence End Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant={"outline"}
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? format(field.value, "PPP") : <span>Pick a date</span>}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value}
-                            onSelect={field.onChange}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            )}
 
             <FormField
               control={form.control}

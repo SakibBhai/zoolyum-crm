@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useInvoiceContext } from "@/contexts/invoice-context"
 import { useProjectContext } from "@/contexts/project-context"
@@ -79,18 +79,22 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
   const { tasks } = useTaskContext()
 
   // Get clients from projects (in a real app, you'd have a separate clients context)
-  const clients = Array.from(
-    new Set(
-      projects.map((project) => ({
+  const clients = useMemo(() => {
+    return projects
+      .filter((project) => project.clientId && project.client) // Filter out projects without client info
+      .map((project) => ({
         id: project.clientId,
-        name: project.clientName,
-      })),
-    ),
-    (client) => JSON.stringify(client),
-  ).map((client) => JSON.parse(client))
+        name: project.client,
+      }))
+      .filter((client, index, self) => 
+        // Remove duplicates based on ID
+        index === self.findIndex(c => c.id === client.id)
+      )
+      .filter((client) => client.id && client.id.trim() !== "" && client.name && client.name.trim() !== "") // Ensure no empty values
+  }, [projects])
 
-  const [today, setToday] = useState<Date | undefined>(undefined)
-  const [defaultDueDate, setDefaultDueDate] = useState<Date | undefined>(undefined)
+  const [today, setToday] = useState<Date>(new Date())
+  const [defaultDueDate, setDefaultDueDate] = useState<Date>(addDays(new Date(), 14))
   
   // Set dates on the client side only
   useEffect(() => {
@@ -103,6 +107,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
   const [previewOpen, setPreviewOpen] = useState(false)
   const [saveAsDraft, setSaveAsDraft] = useState(false)
   const [formProgress, setFormProgress] = useState(0)
+  const prevClientIdRef = useRef<string>()
 
   // Initialize form with default values or existing invoice data
   const defaultValues = invoice
@@ -178,7 +183,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
 
   // Update recipient info when client changes
   useEffect(() => {
-    if (formValues.clientId && !isEditing) {
+    if (formValues.clientId && !isEditing && formValues.clientId !== prevClientIdRef.current) {
       const selectedClient = clients.find((client) => client.id === formValues.clientId)
       if (selectedClient) {
         setValue("recipientInfo", {
@@ -187,6 +192,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
           name: selectedClient.name,
         })
       }
+      prevClientIdRef.current = formValues.clientId
     }
   }, [formValues.clientId, clients, setValue, isEditing])
 
@@ -196,10 +202,14 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
   const total = subtotal + taxAmount - formValues.discount
 
   // Filter projects by selected client
-  const clientProjects = projects.filter((project) => project.clientId === formValues.clientId)
+  const clientProjects = useMemo(() => {
+    return projects.filter((project) => project.clientId === formValues.clientId)
+  }, [projects, formValues.clientId])
 
   // Filter tasks by selected project
-  const projectTasks = tasks.filter((task) => task.projectId === formValues.projectId)
+  const projectTasks = useMemo(() => {
+    return tasks.filter((task) => task.projectId === formValues.projectId)
+  }, [tasks, formValues.projectId])
 
   // Handle adding a new line item
   const handleAddLineItem = () => {
@@ -532,7 +542,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
                           <SelectValue placeholder="Select a project" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">No Project</SelectItem>
+                          <SelectItem value="no-project">No Project</SelectItem>
                           {clientProjects.map((project) => (
                             <SelectItem key={project.id} value={project.id}>
                               {project.name}
@@ -556,8 +566,8 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
                     control={control}
                     render={({ field }) => (
                       <DatePicker
-                        selected={new Date(field.value)}
-                        onSelect={(date) => field.onChange(format(date, "yyyy-MM-dd"))}
+                        selected={field.value ? new Date(field.value) : undefined}
+                        onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
                       />
                     )}
                   />
@@ -573,9 +583,9 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
                     control={control}
                     render={({ field }) => (
                       <DatePicker
-                        selected={new Date(field.value)}
-                        onSelect={(date) => field.onChange(format(date, "yyyy-MM-dd"))}
-                        minDate={new Date(formValues.issueDate)}
+                        selected={field.value ? new Date(field.value) : undefined}
+                        onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                        minDate={formValues.issueDate ? new Date(formValues.issueDate) : undefined}
                       />
                     )}
                   />
@@ -771,7 +781,6 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
                               </SelectTrigger>
                               <SelectContent>
                                 <SelectItem value="no-task">No Task</SelectItem>
-                                <SelectItem value="no-value" hidden={true}></SelectItem>
                                 {projectTasks.map((task) => (
                                   <SelectItem key={task.id} value={task.id}>
                                     {task.name}

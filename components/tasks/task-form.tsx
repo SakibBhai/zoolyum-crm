@@ -222,7 +222,7 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
       name: values.name,
       project: project.name,
       projectId: values.projectId,
-      assignedTo: assignedTo,
+      assignedTo: values.assignedToId,
       category: values.category,
       dueDate: formattedDueDate,
       priority: priorityMap[values.priority],

@@ -14,9 +14,10 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log('Received team member data:', body)
     
     // Validate required fields
-    const requiredFields = ['name', 'email', 'role', 'department']
+    const requiredFields = ['name', 'email', 'department']
     for (const field of requiredFields) {
       if (!body[field]) {
         return NextResponse.json(
@@ -36,6 +37,7 @@ export async function POST(request: NextRequest) {
     }
 
     const newTeamMember = await teamService.create(body)
+    console.log('Created team member:', newTeamMember)
     return NextResponse.json(newTeamMember, { status: 201 })
   } catch (error) {
     console.error("Error in POST /api/team:", error)
@@ -48,6 +50,9 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    return NextResponse.json({ error: "Failed to create team member" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Failed to create team member",
+      details: error instanceof Error ? error.message : "Unknown error"
+    }, { status: 500 })
   }
 }

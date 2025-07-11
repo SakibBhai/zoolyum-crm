@@ -4,9 +4,6 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import type { Task, StatusHistoryEntry, TaskDependency } from "@/types/task"
 
-// Initial mock data
-import { initialTasks } from "@/data/tasks"
-
 // UUID generation function
 function generateUUID(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {
@@ -22,7 +19,7 @@ function generateUUID(): string {
 
 type TaskContextType = {
   tasks: Task[]
-  addTask: (task: Omit<Task, "id" | "statusHistory" | "dependencies">) => string
+  addTask: (task: Omit<Task, "id" | "statusHistory" | "dependencies">) => Promise<string>
   updateTask: (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => void
   deleteTask: (taskId: string) => Promise<{ success: boolean; error?: string }>
   updateTaskStatus: (taskId: string, newStatus: string, userId: string, userName: string) => void
@@ -34,6 +31,7 @@ type TaskContextType = {
     dependents: Task[]
     related: Task[]
   }
+  refreshTasks: () => void
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined)
@@ -41,47 +39,150 @@ const TaskContext = createContext<TaskContextType | undefined>(undefined)
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([])
 
-  // Initialize tasks from mock data
-  useEffect(() => {
-    setTasks(initialTasks)
-  }, [])
-
-  const addTask = (task: Omit<Task, "id" | "statusHistory" | "dependencies">) => {
-    const newTaskId = generateUUID()
-
-    const newTask: Task = {
-      id: newTaskId,
-      ...task,
-      statusHistory: [
-        {
-          id: generateUUID(),
-          date: new Date().toISOString(),
-          oldStatus: "",
-          newStatus: task.status,
-          userId: "user1", // In a real app, this would be the current user's ID
-          userName: "Sarah Johnson", // In a real app, this would be the current user's name
-        },
-      ],
-      dependencies: [],
+  // Fetch tasks from database
+  const fetchTasks = async () => {
+    try {
+      const response = await fetch('/api/tasks')
+      if (response.ok) {
+        const data = await response.json()
+        // Transform the database data to match the Task type
+        const transformedTasks = data.map((dbTask: any) => ({
+          id: dbTask.id,
+          name: dbTask.title,
+          project: dbTask.project_name || 'Unknown Project',
+          projectId: dbTask.project_id,
+          assignedTo: dbTask.assignee_name || 'Unassigned',
+          category: 'General', // Default category
+          dueDate: dbTask.due_date,
+          priority: dbTask.priority,
+          status: dbTask.status,
+          brief: dbTask.description,
+          details: '',
+          statusHistory: [],
+          dependencies: [],
+        }))
+        setTasks(transformedTasks)
+      }
+    } catch (error) {
+      console.error('Error fetching tasks:', error)
     }
-
-    setTasks((prevTasks) => [...prevTasks, newTask])
-    return newTaskId
   }
 
-  const updateTask = (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) => {
-        if (task.id === taskId) {
-          return {
-            ...task,
-            ...updates,
-            updatedAt: new Date().toISOString(),
-          }
-        }
-        return task
+  useEffect(() => {
+    fetchTasks()
+  }, [])
+
+  const addTask = async (task: Omit<Task, "id" | "statusHistory" | "dependencies">) => {
+    try {
+      // Transform status from display format to database format
+      const statusMap: Record<string, string> = {
+        'To Do': 'todo',
+        'In Progress': 'in_progress',
+        'Review': 'review',
+        'Done': 'done',
+        'Backlog': 'backlog',
+      }
+
+      // Transform priority from display format to database format  
+      const priorityMap: Record<string, string> = {
+        'Low': 'low',
+        'Medium': 'medium',
+        'High': 'high',
+        'Urgent': 'urgent',
+      }
+
+      // Parse date - handle both formatted strings and ISO strings
+      let parsedDate: string
+      try {
+        // Try to parse as a formatted date first
+        parsedDate = new Date(task.dueDate).toISOString()
+      } catch (e) {
+        // If that fails, assume it's already in a valid format
+        parsedDate = task.dueDate
+      }
+
+      // Transform the task data to match the database schema
+      const dbTask = {
+        title: task.name,
+        description: task.brief + (task.details ? '\n\n' + task.details : ''),
+        project_id: task.projectId,
+        assigned_to: task.assignedTo, // This should be the team member ID
+        due_date: parsedDate,
+        priority: priorityMap[task.priority] || task.priority.toLowerCase(),
+        status: statusMap[task.status] || task.status.toLowerCase().replace(' ', '_').replace('to_do', 'todo'),
+        estimated_hours: null,
+        is_content_related: false,
+        dependencies: [],
+      }
+
+      console.log('Sending task data to API:', dbTask)
+
+      const response = await fetch('/api/tasks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dbTask),
       })
-    )
+
+      if (response.ok) {
+        const newTask = await response.json()
+        console.log('Received task from API:', newTask)
+        // Transform the response back to match the Task type
+        const transformedTask = {
+          id: newTask.id,
+          name: newTask.title,
+          project: newTask.project_name || 'Unknown Project',
+          projectId: newTask.project_id,
+          assignedTo: newTask.assignee_name || 'Unassigned',
+          category: 'General', // Default category
+          dueDate: newTask.due_date,
+          priority: newTask.priority,
+          status: newTask.status,
+          brief: newTask.description,
+          details: '',
+          statusHistory: [],
+          dependencies: [],
+        }
+        setTasks(prevTasks => [...prevTasks, transformedTask])
+        return newTask.id
+      } else {
+        const errorData = await response.json()
+        console.error('Error response from API:', errorData)
+      }
+    } catch (error) {
+      console.error('Error adding task:', error)
+    }
+    return generateUUID() // fallback
+  }
+
+  const updateTask = async (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => {
+    try {
+      const response = await fetch(`/api/tasks/${taskId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      })
+
+      if (response.ok) {
+        setTasks((prevTasks) =>
+          prevTasks.map((task) => {
+            if (task.id === taskId) {
+              return {
+                ...task,
+                ...updates,
+                updatedAt: new Date().toISOString(),
+              }
+            }
+            return task
+          })
+        )
+      }
+    } catch (error) {
+      console.error('Error updating task:', error)
+    }
   }
 
   const deleteTask = async (taskId: string) => {
@@ -230,6 +331,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         addTaskDependency,
         removeTaskDependency,
         getTaskDependencies,
+        refreshTasks: fetchTasks,
       }}
     >
       {children}

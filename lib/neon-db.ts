@@ -1,19 +1,28 @@
 import { neon } from "@neondatabase/serverless"
 
-// Use the DATABASE_URL environment variable
-const databaseUrl = process.env.NEON_NEON_DATABASE_URL
-
-if (!databaseUrl) {
-  throw new Error("DATABASE_URL environment variable is not set")
+// Load environment variables in non-Next.js environments
+if (typeof window === 'undefined' && !process.env.NEXT_RUNTIME) {
+  try {
+    const dotenv = require('dotenv');
+    dotenv.config({ path: '.env.local' });
+  } catch (error) {
+    // dotenv not available or not needed
+  }
 }
 
-const sql = neon(databaseUrl)
+const databaseUrl = process.env.NEON_NEON_DATABASE_URL;
+
+if (!databaseUrl) {
+  throw new Error("NEON_NEON_DATABASE_URL environment variable is not set");
+}
+
+const sql = neon(databaseUrl);
 
 export const clientsService = {
   async getAll() {
     try {
       const clients = await sql`
-        SELECT id, name, industry, contact_name, email, phone, status, notes, created_at, updated_at
+        SELECT id, name, email, phone, address, status, billing_terms, contract_details, created_at, updated_at
         FROM clients 
         ORDER BY name ASC
       `
@@ -27,8 +36,8 @@ export const clientsService = {
   async create(client: any) {
     try {
       const [newClient] = await sql`
-        INSERT INTO clients (name, industry, contact_name, email, phone, status, notes)
-        VALUES (${client.name}, ${client.industry}, ${client.contact_name}, ${client.email}, ${client.phone}, ${client.status || "active"}, ${client.notes || ""})
+        INSERT INTO clients (name, email, phone, address, status, billing_terms, contract_details)
+        VALUES (${client.name}, ${client.email}, ${client.phone}, ${client.address || ""}, ${client.status || "active"}, ${client.billing_terms || ""}, ${client.contract_details || ""})
         RETURNING *
       `
       return newClient
@@ -44,12 +53,12 @@ export const clientsService = {
         UPDATE clients 
         SET 
           name = ${updates.name},
-          industry = ${updates.industry},
-          contact_name = ${updates.contact_name},
           email = ${updates.email},
           phone = ${updates.phone},
+          address = ${updates.address},
           status = ${updates.status},
-          notes = ${updates.notes},
+          billing_terms = ${updates.billing_terms},
+          contract_details = ${updates.contract_details},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
@@ -94,7 +103,19 @@ export const projectsService = {
         LEFT JOIN clients c ON p.client_id = c.id
         ORDER BY p.created_at DESC
       `
-      return projects
+      
+      // Transform the data to match the expected Project type
+      return projects.map(project => ({
+        ...project,
+        client: project.client_name || 'Unknown Client',
+        clientId: project.client_id,
+        startDate: project.start_date,
+        deadline: project.end_date,
+        manager: 'Unknown Manager', // Default since we don't have this in the database
+        managerId: project.created_by || '',
+        type: 'General', // Default since we don't have this in the database
+        progress: 0, // Default since we don't have this in the database
+      }))
     } catch (error) {
       console.error("Error fetching projects:", error)
       return []
@@ -103,9 +124,31 @@ export const projectsService = {
 
   async create(project: any) {
     try {
+      console.log("Creating project with data:", project)
+      
       const [newProject] = await sql`
-        INSERT INTO projects (name, description, client_id, status, start_date, end_date, budget, team_members, is_recurring, frequency, recurrence_end)
-        VALUES (${project.name}, ${project.description}, ${project.client_id}, ${project.status || "planning"}, ${project.start_date}, ${project.end_date}, ${project.budget}, ${JSON.stringify(project.team_members || [])}, ${project.is_recurring || false}, ${project.frequency || null}, ${project.recurrence_end || null})
+        INSERT INTO projects (
+          name, 
+          description, 
+          client_id, 
+          status, 
+          estimated_budget, 
+          actual_budget, 
+          performance_points, 
+          start_date, 
+          end_date
+        )
+        VALUES (
+          ${project.name},
+          ${project.description || ''},
+          ${project.client_id},
+          ${project.status || 'draft'},
+          ${parseFloat(project.estimated_budget) || parseFloat(project.budget) || 0},
+          ${parseFloat(project.actual_budget) || 0},
+          ${parseInt(project.performance_points) || 0},
+          ${project.start_date},
+          ${project.end_date || project.deadline}
+        )
         RETURNING *
       `
       return newProject
@@ -117,100 +160,29 @@ export const projectsService = {
 
   async update(id: string, updates: any) {
     try {
-      // Get the current project to determine which fields to update
-      const currentProject = await this.getById(id);
-      if (!currentProject) {
-        throw new Error(`Project with id ${id} not found`);
-      }
-      
-      // Build dynamic SET clause for the SQL query
-      let setClauses = [];
-      let params: any = {};
-      
-      // Process each field in updates object
-      for (const [key, value] of Object.entries(updates)) {
-        // Convert camelCase to snake_case for database fields
-        const dbField = key.replace(/([A-Z])/g, '_$1').toLowerCase();
-        
-        // Skip undefined values
-        if (value === undefined) continue;
-        
-        // Handle special cases
-        if (key === 'teamMembers' || key === 'team_members') {
-          setClauses.push(`team_members = $${dbField}`);
-          params[dbField] = JSON.stringify(value || []);
-        } 
-        else if (key === 'recurrencePattern' || key === 'recurrence_pattern') {
-          setClauses.push(`recurrence_pattern = $${dbField}`);
-          params[dbField] = typeof value === 'string' ? value : JSON.stringify(value || {});
-        }
-        else {
-          setClauses.push(`${dbField} = $${dbField}`);
-          params[dbField] = value;
-        }
-      }
-      
-      // Always update the updated_at timestamp
-      setClauses.push(`updated_at = NOW()`);
-      
-      // If no fields to update, just return the current project
-      if (setClauses.length === 0) {
-        return currentProject;
-      }
-      
-      // Build and execute the SQL query
-      const query = `
+      const [updatedProject] = await sql`
         UPDATE projects 
-        SET ${setClauses.join(', ')}
-        WHERE id = $id
+        SET 
+          name = ${updates.name},
+          description = ${updates.description},
+          client_id = ${updates.client_id},
+          status = ${updates.status},
+          estimated_budget = ${updates.estimated_budget || updates.budget || 0},
+          actual_budget = ${updates.actual_budget || 0},
+          performance_points = ${updates.performance_points || 0},
+          start_date = ${updates.start_date},
+          end_date = ${updates.end_date || updates.deadline},
+          updated_at = NOW()
+        WHERE id = ${id}
         RETURNING *
-      `;
-      
-      const [updatedProject] = await sql.query(query, { ...params, id });
-      return updatedProject;
+      `
+      return updatedProject
     } catch (error) {
-      console.error("Error updating project:", error);
-      throw error;
+      console.error("Error updating project:", error)
+      throw error
     }
   },
   
-  /**
-   * Creates a version history entry for a project update
-   * @param {Object} entry - The version history entry data
-   */
-  async createVersionHistoryEntry(entry: {
-    project_id: string;
-    changed_fields: string[];
-    previous_values: string;
-    changed_by: string;
-    timestamp: string;
-  }) {
-    try {
-      const [historyEntry] = await sql`
-        INSERT INTO project_version_history (
-          project_id, 
-          changed_fields, 
-          previous_values, 
-          changed_by, 
-          timestamp
-        )
-        VALUES (
-          ${entry.project_id}, 
-          ${JSON.stringify(entry.changed_fields)}, 
-          ${entry.previous_values}, 
-          ${entry.changed_by}, 
-          ${entry.timestamp}
-        )
-        RETURNING *
-      `;
-      return historyEntry;
-    } catch (error) {
-      console.error("Error creating version history entry:", error);
-      // Log but don't throw to prevent blocking the main update
-      return null;
-    }
-  },
-
   async delete(id: string) {
     try {
       await sql`DELETE FROM projects WHERE id = ${id}`
@@ -243,10 +215,8 @@ export const teamService = {
     try {
       const teamMembers = await sql`
         SELECT 
-          tm.*,
-          d.name as department_name
+          tm.*
         FROM team_members tm
-        LEFT JOIN departments d ON tm.department_id = d.id
         WHERE tm.is_active = true
         ORDER BY tm.name ASC
       `
@@ -259,37 +229,30 @@ export const teamService = {
 
   async create(teamMember: any) {
     try {
-      // Generate employee ID
-      const employeeId = `EMP${Date.now().toString().slice(-6)}`
+      console.log('Creating team member with data:', teamMember)
       
       const [newTeamMember] = await sql`
         INSERT INTO team_members (
-          name, email, role, department, phone, bio, skills, 
-          avatar, linkedin, twitter, location, salary, employee_id, 
-          manager, performance_rating, emergency_contact_name, 
-          emergency_contact_relationship, emergency_contact_phone, 
-          emergency_contact_email, is_active
+          name, title, department, bio, email, phone, location, 
+          skills, achievements, social_linkedin, social_twitter, 
+          social_github, social_portfolio, avatar_url, is_lead, is_active
         )
         VALUES (
           ${teamMember.name},
-          ${teamMember.email},
-          ${teamMember.role},
+          ${teamMember.role || teamMember.title || 'Team Member'},
           ${teamMember.department},
-          ${teamMember.phone || null},
           ${teamMember.bio || ''},
-          ${JSON.stringify(teamMember.skills || [])},
-          ${teamMember.avatar || '/placeholder-user.jpg'},
-          ${teamMember.linkedin || null},
-          ${teamMember.twitter || null},
+          ${teamMember.email},
+          ${teamMember.phone || null},
           ${teamMember.location || ''},
-          ${teamMember.salary || null},
-          ${employeeId},
-          ${teamMember.manager || null},
-          ${teamMember.performanceRating || null},
-          ${teamMember.emergencyContact?.name || null},
-          ${teamMember.emergencyContact?.relationship || null},
-          ${teamMember.emergencyContact?.phone || null},
-          ${teamMember.emergencyContact?.email || null},
+          ${teamMember.skills || []},
+          ${teamMember.achievements || []},
+          ${teamMember.linkedin || teamMember.social_linkedin || null},
+          ${teamMember.twitter || teamMember.social_twitter || null},
+          ${teamMember.github || teamMember.social_github || null},
+          ${teamMember.portfolio || teamMember.social_portfolio || null},
+          ${teamMember.avatar || teamMember.avatar_url || null},
+          ${teamMember.isLead || teamMember.is_lead || false},
           ${teamMember.isActive !== false}
         )
         RETURNING *
@@ -376,6 +339,242 @@ export const teamService = {
       return teamMember
     } catch (error) {
       console.error("Error fetching team member by email:", error)
+      throw error
+    }
+  }
+}
+
+export const tasksService = {
+  async getAll() {
+    try {
+      const tasks = await sql`
+        SELECT 
+          t.*,
+          p.name as project_name,
+          c.name as client_name,
+          tm.name as assignee_name
+        FROM tasks t
+        LEFT JOIN projects p ON t.project_id = p.id
+        LEFT JOIN clients c ON p.client_id = c.id
+        LEFT JOIN team_members tm ON t.assigned_to = tm.id
+        ORDER BY t.created_at DESC
+      `
+      return tasks
+    } catch (error) {
+      console.error("Error fetching tasks:", error)
+      return []
+    }
+  },
+
+  async create(task: any) {
+    try {
+      console.log("Creating task with data:", task)
+      
+      const [newTask] = await sql`
+        INSERT INTO tasks (
+          title, description, project_id, assigned_to, priority, 
+          status, due_date, estimated_hours, is_content_related, dependencies
+        )
+        VALUES (
+          ${task.title},
+          ${task.description || ''},
+          ${task.project_id},
+          ${task.assigned_to || task.assignee_id},
+          ${task.priority || 'medium'},
+          ${task.status || 'backlog'},
+          ${task.due_date},
+          ${task.estimated_hours || null},
+          ${task.is_content_related || false},
+          ${task.dependencies || []}
+        )
+        RETURNING *
+      `
+      console.log("Successfully created task:", newTask)
+      return newTask
+    } catch (error) {
+      console.error("Error creating task:", error)
+      throw error
+    }
+  },
+
+  async update(id: string, updates: any) {
+    try {
+      const [updatedTask] = await sql`
+        UPDATE tasks 
+        SET 
+          title = ${updates.title},
+          description = ${updates.description},
+          project_id = ${updates.project_id},
+          assigned_to = ${updates.assigned_to || updates.assignee_id},
+          priority = ${updates.priority},
+          status = ${updates.status},
+          due_date = ${updates.due_date},
+          estimated_hours = ${updates.estimated_hours},
+          actual_hours = ${updates.actual_hours},
+          is_content_related = ${updates.is_content_related},
+          dependencies = ${updates.dependencies || []},
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `
+      return updatedTask
+    } catch (error) {
+      console.error("Error updating task:", error)
+      throw error
+    }
+  },
+
+  async delete(id: string) {
+    try {
+      await sql`DELETE FROM tasks WHERE id = ${id}`
+    } catch (error) {
+      console.error("Error deleting task:", error)
+      throw error
+    }
+  },
+
+  async getById(id: string) {
+    try {
+      const [task] = await sql`
+        SELECT 
+          t.*,
+          p.name as project_name,
+          c.name as client_name,
+          tm.name as assignee_name
+        FROM tasks t
+        LEFT JOIN projects p ON t.project_id = p.id
+        LEFT JOIN clients c ON p.client_id = c.id
+        LEFT JOIN team_members tm ON t.assigned_to = tm.id
+        WHERE t.id = ${id}
+      `
+      return task
+    } catch (error) {
+      console.error("Error fetching task:", error)
+      throw error
+    }
+  },
+
+  async getByProject(projectId: string) {
+    try {
+      const tasks = await sql`
+        SELECT 
+          t.*,
+          tm.name as assignee_name
+        FROM tasks t
+        LEFT JOIN team_members tm ON t.assigned_to = tm.id
+        WHERE t.project_id = ${projectId}
+        ORDER BY t.created_at DESC
+      `
+      return tasks
+    } catch (error) {
+      console.error("Error fetching tasks by project:", error)
+      return []
+    }
+  }
+}
+
+export const invoicesService = {
+  async getAll() {
+    try {
+      const invoices = await sql`
+        SELECT 
+          i.*,
+          c.name as client_name,
+          p.name as project_name
+        FROM invoices i
+        LEFT JOIN clients c ON i.client_id = c.id
+        LEFT JOIN projects p ON i.project_id = p.id
+        ORDER BY i.created_at DESC
+      `
+      return invoices
+    } catch (error) {
+      console.error("Error fetching invoices:", error)
+      return []
+    }
+  },
+
+  async create(invoice: any) {
+    try {
+      // Generate invoice number
+      const invoiceNumber = `INV-${Date.now().toString().slice(-8)}`
+      
+      const [newInvoice] = await sql`
+        INSERT INTO invoices (
+          invoice_number, client_id, project_id, amount, tax, 
+          discount, total, status, due_date, items, notes
+        )
+        VALUES (
+          ${invoiceNumber},
+          ${invoice.client_id},
+          ${invoice.project_id},
+          ${invoice.amount || 0},
+          ${invoice.tax || 0},
+          ${invoice.discount || 0},
+          ${invoice.total || 0},
+          ${invoice.status || 'draft'},
+          ${invoice.due_date},
+          ${JSON.stringify(invoice.items || [])},
+          ${invoice.notes || ''}
+        )
+        RETURNING *
+      `
+      return newInvoice
+    } catch (error) {
+      console.error("Error creating invoice:", error)
+      throw error
+    }
+  },
+
+  async update(id: string, updates: any) {
+    try {
+      const [updatedInvoice] = await sql`
+        UPDATE invoices 
+        SET 
+          client_id = ${updates.client_id},
+          project_id = ${updates.project_id},
+          amount = ${updates.amount},
+          tax = ${updates.tax},
+          discount = ${updates.discount},
+          total = ${updates.total},
+          status = ${updates.status},
+          due_date = ${updates.due_date},
+          items = ${JSON.stringify(updates.items || [])},
+          notes = ${updates.notes},
+          updated_at = NOW()
+        WHERE id = ${id}
+        RETURNING *
+      `
+      return updatedInvoice
+    } catch (error) {
+      console.error("Error updating invoice:", error)
+      throw error
+    }
+  },
+
+  async delete(id: string) {
+    try {
+      await sql`DELETE FROM invoices WHERE id = ${id}`
+    } catch (error) {
+      console.error("Error deleting invoice:", error)
+      throw error
+    }
+  },
+
+  async getById(id: string) {
+    try {
+      const [invoice] = await sql`
+        SELECT 
+          i.*,
+          c.name as client_name,
+          p.name as project_name
+        FROM invoices i
+        LEFT JOIN clients c ON i.client_id = c.id
+        LEFT JOIN projects p ON i.project_id = p.id
+        WHERE i.id = ${id}
+      `
+      return invoice
+    } catch (error) {
+      console.error("Error fetching invoice:", error)
       throw error
     }
   }

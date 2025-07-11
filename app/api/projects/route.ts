@@ -14,10 +14,16 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
+    console.log("Received project data:", body)
+    
     const newProject = await projectsService.create(body)
     return NextResponse.json(newProject, { status: 201 })
   } catch (error) {
     console.error("Error in POST /api/projects:", error)
-    return NextResponse.json({ error: "Failed to create project" }, { status: 500 })
+    return NextResponse.json({ 
+      error: "Failed to create project", 
+      message: error instanceof Error ? error.message : "Unknown error",
+      details: error
+    }, { status: 500 })
   }
 }

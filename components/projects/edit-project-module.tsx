@@ -133,7 +133,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
       clientId: "",
       type: "",
       managerId: "",
-      status: "planning",
+      status: "draft",
       description: "",
       isRecurring: false,
       priority: 3,

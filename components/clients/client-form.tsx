@@ -16,20 +16,16 @@ const formSchema = z.object({
   name: z.string().min(2, {
     message: "Client name must be at least 2 characters.",
   }),
-  industry: z.string().min(2, {
-    message: "Industry must be at least 2 characters.",
-  }),
-  contactName: z.string().min(2, {
-    message: "Contact name must be at least 2 characters.",
-  }),
   email: z.string().email({
     message: "Please enter a valid email address.",
   }),
   phone: z.string().min(10, {
     message: "Phone number must be at least 10 characters.",
   }),
+  address: z.string().optional(),
   status: z.string(),
-  notes: z.string().optional(),
+  billingTerms: z.string().optional(),
+  contractDetails: z.string().optional(),
 })
 
 export function ClientForm() {
@@ -40,12 +36,12 @@ export function ClientForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
-      industry: "",
-      contactName: "",
       email: "",
       phone: "",
+      address: "",
       status: "active",
-      notes: "",
+      billingTerms: "",
+      contractDetails: "",
     },
   })
 
@@ -58,12 +54,12 @@ export function ClientForm() {
         },
         body: JSON.stringify({
           name: values.name,
-          industry: values.industry,
-          contact_name: values.contactName,
           email: values.email,
           phone: values.phone,
+          address: values.address || "",
           status: values.status,
-          notes: values.notes || "",
+          billing_terms: values.billingTerms || "",
+          contract_details: values.contractDetails || "",
         }),
       })
 
@@ -110,12 +106,12 @@ export function ClientForm() {
 
               <FormField
                 control={form.control}
-                name="industry"
+                name="address"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Industry</FormLabel>
+                    <FormLabel>Address</FormLabel>
                     <FormControl>
-                      <Input placeholder="Fashion, Technology, etc." {...field} />
+                      <Input placeholder="123 Main St, City, State" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -124,20 +120,6 @@ export function ClientForm() {
             </div>
 
             <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
-              <FormField
-                control={form.control}
-                name="contactName"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Point of Contact</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John Smith" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
               <FormField
                 control={form.control}
                 name="status"
@@ -194,13 +176,27 @@ export function ClientForm() {
 
             <FormField
               control={form.control}
-              name="notes"
+              name="billingTerms"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notes</FormLabel>
+                  <FormLabel>Billing Terms</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Net 30, Net 60, etc." {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="contractDetails"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Contract Details</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Additional information about this client..."
+                      placeholder="Contract terms, agreements, and other details..."
                       className="min-h-[120px]"
                       {...field}
                     />
