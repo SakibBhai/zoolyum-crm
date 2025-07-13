@@ -28,27 +28,44 @@ const formSchema = z.object({
   contractDetails: z.string().optional(),
 })
 
-export function ClientForm() {
+interface ClientFormProps {
+  initialData?: {
+    id?: number
+    name: string
+    email: string
+    phone: string
+    address?: string
+    status: string
+    billing_terms?: string
+    contract_details?: string
+  }
+  isEditing?: boolean
+}
+
+export function ClientForm({ initialData, isEditing = false }: ClientFormProps) {
   const { toast } = useToast()
   const router = useRouter()
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      email: "",
-      phone: "",
-      address: "",
-      status: "active",
-      billingTerms: "",
-      contractDetails: "",
+      name: initialData?.name || "",
+      email: initialData?.email || "",
+      phone: initialData?.phone || "",
+      address: initialData?.address || "",
+      status: initialData?.status || "active",
+      billingTerms: initialData?.billing_terms || "",
+      contractDetails: initialData?.contract_details || "",
     },
   })
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const response = await fetch("/api/clients", {
-        method: "POST",
+      const url = isEditing ? `/api/clients/${initialData?.id}` : "/api/clients"
+      const method = isEditing ? "PUT" : "POST"
+      
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -64,21 +81,21 @@ export function ClientForm() {
       })
 
       if (!response.ok) {
-        throw new Error("Failed to create client")
+        throw new Error(`Failed to ${isEditing ? 'update' : 'create'} client`)
       }
 
       toast({
-        title: "Client created",
-        description: `${values.name} has been added to your clients.`,
+        title: isEditing ? "Client updated" : "Client created",
+        description: `${values.name} has been ${isEditing ? 'updated' : 'added to your clients'}.`,
       })
 
       // Redirect to clients list
       router.push("/dashboard/clients")
     } catch (error) {
-      console.error("Error creating client:", error)
+      console.error(`Error ${isEditing ? 'updating' : 'creating'} client:`, error)
       toast({
         title: "Error",
-        description: "There was a problem creating the client. Please try again.",
+        description: `There was a problem ${isEditing ? 'updating' : 'creating'} the client. Please try again.`,
         variant: "destructive",
       })
     }
@@ -210,7 +227,7 @@ export function ClientForm() {
               <Button type="button" variant="outline" onClick={() => router.back()}>
                 Cancel
               </Button>
-              <Button type="submit">Create Client</Button>
+              <Button type="submit">{isEditing ? "Update Client" : "Create Client"}</Button>
             </div>
           </form>
         </Form>
