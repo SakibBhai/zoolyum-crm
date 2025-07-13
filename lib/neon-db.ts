@@ -220,7 +220,21 @@ export const teamService = {
         WHERE tm.is_active = true
         ORDER BY tm.name ASC
       `
-      return teamMembers
+      
+      // Transform database response to match TypeScript interface
+      return teamMembers.map(member => ({
+        ...member,
+        skills: typeof member.skills === 'string' ? JSON.parse(member.skills) : (member.skills || []),
+        emergencyContact: member.emergency_contact_name ? {
+          name: member.emergency_contact_name,
+          relationship: member.emergency_contact_relationship,
+          phone: member.emergency_contact_phone,
+          email: member.emergency_contact_email
+        } : undefined,
+        employeeId: member.employee_id,
+        performanceRating: member.performance_rating,
+        joinDate: member.created_at
+      }))
     } catch (error) {
       console.error("Error fetching team members:", error)
       return []
@@ -231,28 +245,27 @@ export const teamService = {
     try {
       console.log('Creating team member with data:', teamMember)
       
+      // Generate a unique employee_id if not provided
+      const employeeId = teamMember.employee_id || `EMP-${Date.now().toString().slice(-6)}`
+      
       const [newTeamMember] = await sql`
         INSERT INTO team_members (
-          name, title, department, bio, email, phone, location, 
-          skills, achievements, social_linkedin, social_twitter, 
-          social_github, social_portfolio, avatar_url, is_lead, is_active
+          name, role, department, bio, email, phone, location, 
+          skills, linkedin, twitter, avatar, employee_id, is_active
         )
         VALUES (
           ${teamMember.name},
-          ${teamMember.role || teamMember.title || 'Team Member'},
+          ${teamMember.role || 'Team Member'},
           ${teamMember.department},
           ${teamMember.bio || ''},
           ${teamMember.email},
           ${teamMember.phone || null},
           ${teamMember.location || ''},
-          ${teamMember.skills || []},
-          ${teamMember.achievements || []},
-          ${teamMember.linkedin || teamMember.social_linkedin || null},
-          ${teamMember.twitter || teamMember.social_twitter || null},
-          ${teamMember.github || teamMember.social_github || null},
-          ${teamMember.portfolio || teamMember.social_portfolio || null},
-          ${teamMember.avatar || teamMember.avatar_url || null},
-          ${teamMember.isLead || teamMember.is_lead || false},
+          ${JSON.stringify(teamMember.skills || [])},
+          ${teamMember.linkedin || null},
+          ${teamMember.twitter || null},
+          ${teamMember.avatar || '/placeholder-user.jpg'},
+          ${employeeId},
           ${teamMember.isActive !== false}
         )
         RETURNING *
@@ -266,30 +279,109 @@ export const teamService = {
 
   async update(id: string, updates: any) {
     try {
+      // First, get the current team member to preserve existing values
+      const [currentMember] = await sql`SELECT * FROM team_members WHERE id = ${id}`
+      if (!currentMember) {
+        throw new Error('Team member not found')
+      }
+      
+      // Handle emergency contact object if provided
+      let emergencyContactUpdates = {}
+      if (updates.emergencyContact) {
+        emergencyContactUpdates = {
+          emergency_contact_name: updates.emergencyContact.name,
+          emergency_contact_relationship: updates.emergencyContact.relationship,
+          emergency_contact_phone: updates.emergencyContact.phone,
+          emergency_contact_email: updates.emergencyContact.email
+        }
+      }
+      
+      // Merge updates with current values, only updating provided fields
+      const updatedData = {
+        name: updates.name !== undefined ? updates.name : currentMember.name,
+        email: updates.email !== undefined ? updates.email : currentMember.email,
+        role: updates.role !== undefined ? updates.role : currentMember.role,
+        department: updates.department !== undefined ? updates.department : currentMember.department,
+        phone: updates.phone !== undefined ? updates.phone : currentMember.phone,
+        bio: updates.bio !== undefined ? updates.bio : currentMember.bio,
+        skills: updates.skills !== undefined ? JSON.stringify(updates.skills) : currentMember.skills,
+        location: updates.location !== undefined ? updates.location : currentMember.location,
+        linkedin: updates.linkedin !== undefined ? updates.linkedin : currentMember.linkedin,
+        twitter: updates.twitter !== undefined ? updates.twitter : currentMember.twitter,
+        avatar: (updates.avatar !== undefined || updates.avatar_url !== undefined) ? 
+                (updates.avatar || updates.avatar_url) : currentMember.avatar,
+        salary: updates.salary !== undefined ? updates.salary : currentMember.salary,
+        employee_id: updates.employeeId !== undefined ? updates.employeeId : 
+                     (updates.employee_id !== undefined ? updates.employee_id : currentMember.employee_id),
+        manager: updates.manager !== undefined ? updates.manager : currentMember.manager,
+        performance_rating: updates.performanceRating !== undefined ? updates.performanceRating : 
+                           (updates.performance_rating !== undefined ? updates.performance_rating : currentMember.performance_rating),
+        emergency_contact_name: ('emergency_contact_name' in emergencyContactUpdates) ?
+                               emergencyContactUpdates.emergency_contact_name : 
+                               (updates.emergency_contact_name !== undefined ? updates.emergency_contact_name : currentMember.emergency_contact_name),
+        emergency_contact_relationship: ('emergency_contact_relationship' in emergencyContactUpdates) ?
+                                       emergencyContactUpdates.emergency_contact_relationship : 
+                                       (updates.emergency_contact_relationship !== undefined ? updates.emergency_contact_relationship : currentMember.emergency_contact_relationship),
+        emergency_contact_phone: ('emergency_contact_phone' in emergencyContactUpdates) ?
+                                emergencyContactUpdates.emergency_contact_phone : 
+                                (updates.emergency_contact_phone !== undefined ? updates.emergency_contact_phone : currentMember.emergency_contact_phone),
+        emergency_contact_email: ('emergency_contact_email' in emergencyContactUpdates) ?
+                                emergencyContactUpdates.emergency_contact_email : 
+                                (updates.emergency_contact_email !== undefined ? updates.emergency_contact_email : currentMember.emergency_contact_email),
+        is_active: (updates.isActive !== undefined || updates.is_active !== undefined) ? 
+                   (updates.isActive !== undefined ? updates.isActive : updates.is_active) : currentMember.is_active,
+        status: updates.status !== undefined ? updates.status : currentMember.status
+      }
+      
+      console.log('Updating team member with data:', updatedData)
+      
       const [updatedTeamMember] = await sql`
         UPDATE team_members 
         SET 
-          name = ${updates.name},
-          email = ${updates.email},
-          title = ${updates.title || updates.role},
-          role = ${updates.role || updates.title},
-          department = ${updates.department},
-          phone = ${updates.phone},
-          bio = ${updates.bio},
-          skills = ${updates.skills || []},
-          location = ${updates.location},
-          social_linkedin = ${updates.linkedin || updates.social_linkedin},
-          social_twitter = ${updates.twitter || updates.social_twitter},
-          social_github = ${updates.social_github},
-          social_portfolio = ${updates.social_portfolio},
-          avatar_url = ${updates.avatar || updates.avatar_url},
-          is_lead = ${updates.is_lead},
-          is_active = ${updates.isActive !== undefined ? updates.isActive : updates.is_active},
+          name = ${updatedData.name},
+          email = ${updatedData.email},
+          role = ${updatedData.role},
+          department = ${updatedData.department},
+          phone = ${updatedData.phone},
+          bio = ${updatedData.bio},
+          skills = ${updatedData.skills},
+          location = ${updatedData.location},
+          linkedin = ${updatedData.linkedin},
+          twitter = ${updatedData.twitter},
+          avatar = ${updatedData.avatar},
+          salary = ${updatedData.salary},
+          employee_id = ${updatedData.employee_id},
+          manager = ${updatedData.manager},
+          performance_rating = ${updatedData.performance_rating},
+          emergency_contact_name = ${updatedData.emergency_contact_name},
+          emergency_contact_relationship = ${updatedData.emergency_contact_relationship},
+          emergency_contact_phone = ${updatedData.emergency_contact_phone},
+          emergency_contact_email = ${updatedData.emergency_contact_email},
+          is_active = ${updatedData.is_active},
+          status = ${updatedData.status},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `
-      return updatedTeamMember
+      
+      // Transform the database response to match the TypeScript interface
+      const transformedMember = {
+        ...updatedTeamMember,
+        skills: typeof updatedTeamMember.skills === 'string' ? 
+                JSON.parse(updatedTeamMember.skills) : updatedTeamMember.skills,
+        emergencyContact: updatedTeamMember.emergency_contact_name ? {
+          name: updatedTeamMember.emergency_contact_name,
+          relationship: updatedTeamMember.emergency_contact_relationship,
+          phone: updatedTeamMember.emergency_contact_phone,
+          email: updatedTeamMember.emergency_contact_email
+        } : undefined,
+        employeeId: updatedTeamMember.employee_id,
+        performanceRating: updatedTeamMember.performance_rating,
+        joinDate: updatedTeamMember.created_at
+      }
+      
+      console.log('Successfully updated team member:', transformedMember)
+      return transformedMember
     } catch (error) {
       console.error("Error updating team member:", error)
       throw error
@@ -315,7 +407,25 @@ export const teamService = {
       const [teamMember] = await sql`
         SELECT * FROM team_members WHERE id = ${id}
       `
-      return teamMember
+      
+      if (!teamMember) {
+        return null
+      }
+      
+      // Transform database response to match TypeScript interface
+      return {
+        ...teamMember,
+        skills: typeof teamMember.skills === 'string' ? JSON.parse(teamMember.skills) : (teamMember.skills || []),
+        emergencyContact: teamMember.emergency_contact_name ? {
+          name: teamMember.emergency_contact_name,
+          relationship: teamMember.emergency_contact_relationship,
+          phone: teamMember.emergency_contact_phone,
+          email: teamMember.emergency_contact_email
+        } : undefined,
+        employeeId: teamMember.employee_id,
+        performanceRating: teamMember.performance_rating,
+        joinDate: teamMember.created_at
+      }
     } catch (error) {
       console.error("Error fetching team member:", error)
       throw error

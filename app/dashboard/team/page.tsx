@@ -88,6 +88,8 @@ export default function TeamPage() {
 
   const handleUpdateMember = async (id: string, updates: Partial<TeamMember>) => {
     try {
+      console.log('Updating team member:', id, 'with updates:', updates)
+      
       const response = await fetch(`/api/team/${id}`, {
         method: 'PUT',
         headers: {
@@ -97,15 +99,22 @@ export default function TeamPage() {
       })
 
       if (!response.ok) {
-        throw new Error('Failed to update team member')
+        const errorData = await response.json()
+        throw new Error(errorData.error || errorData.details || 'Failed to update team member')
       }
 
       const updatedMember = await response.json()
+      console.log('Successfully updated team member:', updatedMember)
+      
+      // Update local state with the returned data from the server
       setLocalTeamMembers(prev => 
         prev.map(member => 
-          member.id === id ? { ...member, ...updates } : member
+          member.id === id ? { ...member, ...updatedMember } : member
         )
       )
+      
+      // Force a refresh of team data to ensure consistency
+      await fetchTeamMembers()
       
       toast("Success", {
         description: "Team member updated successfully!",
@@ -113,7 +122,7 @@ export default function TeamPage() {
     } catch (error) {
       console.error('Error updating team member:', error)
       toast("Error", {
-        description: "Failed to update team member. Please try again.", 
+        description: error instanceof Error ? error.message : "Failed to update team member. Please try again.", 
         style: { backgroundColor: '#ef4444', color: '#fff' },
       })
     }
