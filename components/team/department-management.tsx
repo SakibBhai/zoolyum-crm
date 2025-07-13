@@ -85,6 +85,7 @@ export function DepartmentManagement({
 
     onDepartmentCreate({
       ...formData,
+      head: formData.head === 'none' ? undefined : formData.head,
       isActive: true
     })
 
@@ -108,6 +109,7 @@ export function DepartmentManagement({
 
     onDepartmentUpdate(editingDepartment.id, {
       ...formData,
+      head: formData.head === 'none' ? undefined : formData.head,
       updatedAt: new Date().toISOString()
     })
 
@@ -143,7 +145,7 @@ export function DepartmentManagement({
     setFormData({
       name: department.name,
       description: department.description,
-      head: department.head,
+      head: department.head || 'none',
       budget: department.budget,
       location: department.location,
       color: department.color,
@@ -238,14 +240,14 @@ export function DepartmentManagement({
         <div className="space-y-2">
           <Label htmlFor="head">Department Head</Label>
           <Select
-            value={formData.head || ""}
-            onValueChange={(value) => setFormData(prev => ({ ...prev, head: value || undefined }))}
+            value={formData.head || "none"}
+            onValueChange={(value) => setFormData(prev => ({ ...prev, head: value }))}
           >
             <SelectTrigger>
               <SelectValue placeholder="Select department head" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="">No head assigned</SelectItem>
+              <SelectItem value="none">No head assigned</SelectItem>
               {teamMembers.map((member) => (
                 <SelectItem key={member.id} value={member.id}>
                   {member.name} - {member.role}

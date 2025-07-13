@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { X, Plus, UserPlus } from "lucide-react"
+import { X, Plus, UserPlus, Upload, User } from "lucide-react"
 import { toast } from "sonner"
 import { TeamMember } from "@/types/team"
 
@@ -42,6 +42,7 @@ interface FormData {
   location: string
   linkedin: string
   twitter: string
+  avatar: string
 }
 
 interface FormErrors {
@@ -55,6 +56,8 @@ export function AddTeamMemberForm({ onAddMember, departments }: AddTeamMemberFor
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
   const [skillInput, setSkillInput] = useState("")
+  const [avatarFile, setAvatarFile] = useState<File | null>(null)
+  const [avatarPreview, setAvatarPreview] = useState<string | null>(null)
   const [formData, setFormData] = useState<FormData>({
     name: "",
     email: "",
@@ -66,6 +69,7 @@ export function AddTeamMemberForm({ onAddMember, departments }: AddTeamMemberFor
     location: "",
     linkedin: "",
     twitter: "",
+    avatar: "",
   })
   const [errors, setErrors] = useState<FormErrors>({})
 
@@ -120,6 +124,38 @@ export function AddTeamMemberForm({ onAddMember, departments }: AddTeamMemberFor
     }))
   }
 
+  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        toast.error('Please select a valid image file')
+        return
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Image size should be less than 5MB')
+        return
+      }
+      
+      setAvatarFile(file)
+      
+      // Create preview
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        setAvatarPreview(e.target?.result as string)
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const removeAvatar = () => {
+    setAvatarFile(null)
+    setAvatarPreview(null)
+    setFormData(prev => ({ ...prev, avatar: '' }))
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -130,6 +166,26 @@ export function AddTeamMemberForm({ onAddMember, departments }: AddTeamMemberFor
     setLoading(true)
 
     try {
+      let avatarUrl = '/placeholder-user.jpg'
+      
+      // Upload avatar if provided
+      if (avatarFile) {
+        const formDataUpload = new FormData()
+        formDataUpload.append('avatar', avatarFile)
+        
+        const uploadResponse = await fetch('/api/upload/avatar', {
+          method: 'POST',
+          body: formDataUpload,
+        })
+        
+        if (uploadResponse.ok) {
+          const uploadResult = await uploadResponse.json()
+          avatarUrl = uploadResult.url
+        } else {
+          toast.error('Failed to upload avatar, using default image')
+        }
+      }
+      
       const response = await fetch('/api/team', {
         method: 'POST',
         headers: {
@@ -146,6 +202,7 @@ export function AddTeamMemberForm({ onAddMember, departments }: AddTeamMemberFor
           location: formData.location || '',
           linkedin: formData.linkedin || null,
           twitter: formData.twitter || null,
+          avatar: avatarUrl,
         }),
       })
 
@@ -198,7 +255,10 @@ export function AddTeamMemberForm({ onAddMember, departments }: AddTeamMemberFor
         location: "",
         linkedin: "",
         twitter: "",
+        avatar: "",
       })
+      setAvatarFile(null)
+      setAvatarPreview(null)
       setOpen(false)
     } catch (error) {
       console.error('Error adding team member:', error)
@@ -225,6 +285,54 @@ export function AddTeamMemberForm({ onAddMember, departments }: AddTeamMemberFor
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Avatar Upload Section */}
+          <div className="space-y-2">
+            <Label>Profile Photo</Label>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center overflow-hidden bg-gray-50">
+                  {avatarPreview ? (
+                    <img
+                      src={avatarPreview}
+                      alt="Avatar preview"
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-8 h-8 text-gray-400" />
+                  )}
+                </div>
+                {avatarPreview && (
+                  <button
+                    type="button"
+                    onClick={removeAvatar}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs hover:bg-red-600"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+              <div className="flex-1">
+                <input
+                  type="file"
+                  id="avatar"
+                  accept="image/*"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+                <Label
+                  htmlFor="avatar"
+                  className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors"
+                >
+                  <Upload className="w-4 h-4" />
+                  {avatarPreview ? 'Change Photo' : 'Upload Photo'}
+                </Label>
+                <p className="text-xs text-gray-500 mt-1">
+                  JPG, PNG or GIF. Max size 5MB.
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="name">Full Name *</Label>

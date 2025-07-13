@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -34,7 +34,7 @@ export function PerformanceDashboard() {
     const itemDate = new Date(item.date)
     const startDate = subMonths(selectedDate, 1)
     return itemDate >= startDate && itemDate <= selectedDate
-  })
+  }) : []
 
   const handleRefresh = () => {
     setIsRefreshing(true)
@@ -48,7 +48,7 @@ export function PerformanceDashboard() {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(filteredData))
     const downloadAnchorNode = document.createElement("a")
     downloadAnchorNode.setAttribute("href", dataStr)
-    downloadAnchorNode.setAttribute("download", `performance-data-${format(selectedDate, "yyyy-MM")}.json`)
+    downloadAnchorNode.setAttribute("download", `performance-data-${selectedDate ? format(selectedDate, "yyyy-MM") : 'no-date'}.json`)
     document.body.appendChild(downloadAnchorNode)
     downloadAnchorNode.click()
     downloadAnchorNode.remove()
@@ -76,10 +76,6 @@ export function PerformanceDashboard() {
             <DatePicker
               selected={selectedDate}
               onSelect={setSelectedDate}
-              mode="single"
-              captionLayout="dropdown-buttons"
-              fromYear={2020}
-              toYear={2030}
             />
           </div>
         </div>

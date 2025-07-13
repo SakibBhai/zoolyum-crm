@@ -20,7 +20,7 @@ function generateUUID(): string {
 type TaskContextType = {
   tasks: Task[]
   addTask: (task: Omit<Task, "id" | "statusHistory" | "dependencies">) => Promise<string>
-  updateTask: (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => void
+  updateTask: (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => Promise<void>
   deleteTask: (taskId: string) => Promise<{ success: boolean; error?: string }>
   updateTaskStatus: (taskId: string, newStatus: string, userId: string, userName: string) => void
   getTaskById: (taskId: string) => Task | undefined
@@ -147,13 +147,19 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         setTasks(prevTasks => [...prevTasks, transformedTask])
         return newTask.id
       } else {
-        const errorData = await response.json()
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch (parseError) {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
         console.error('Error response from API:', errorData)
+        throw new Error(errorData.error || `Failed to add task: ${response.status}`)
       }
     } catch (error) {
       console.error('Error adding task:', error)
+      throw error // Re-throw the error instead of silently falling back
     }
-    return generateUUID() // fallback
   }
 
   const updateTask = async (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => {
@@ -179,9 +185,19 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
             return task
           })
         )
+      } else {
+        let errorData
+        try {
+          errorData = await response.json()
+        } catch (parseError) {
+          errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
+        }
+        console.error('Error updating task:', errorData)
+        throw new Error(errorData.error || `Failed to update task: ${response.status}`)
       }
     } catch (error) {
       console.error('Error updating task:', error)
+      throw error
     }
   }
 
