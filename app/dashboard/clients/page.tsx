@@ -28,7 +28,7 @@ export default function ClientsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <PageHeader heading="Clients" subheading="Manage your agency clients and their information." />
+        <PageHeader heading="Clients" subheading="Manage your Zoolyum clients and their information." />
         <div className="flex gap-3">
           {!showProjectForm && (
             <Button variant="outline" onClick={() => handleAddProject()}>

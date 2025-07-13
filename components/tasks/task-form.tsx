@@ -23,14 +23,15 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { TaskDependency } from "@/types/task"
 
-// Mock data for team members
-const teamMembers = [
-  { id: "1", name: "Sarah Johnson" },
-  { id: "2", name: "Michael Chen" },
-  { id: "3", name: "Emily Rodriguez" },
-  { id: "4", name: "David Kim" },
-  { id: "5", name: "Jessica Lee" },
-]
+// Get team members from context with error handling
+let teamMembers: any[] = []
+try {
+  const context = useTaskContext()
+  teamMembers = context.teamMembers || []
+} catch (error) {
+  console.warn('TaskContext not available, using empty team members array')
+  teamMembers = []
+}
 
 const taskCategories = [
   "Design",
@@ -83,7 +84,25 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
   const searchParams = useSearchParams()
   const projectId = searchParams ? searchParams.get("project") : null
 
-  const { addTask, tasks, addTaskDependency, updateTask } = useTaskContext()
+  // Get task context with error handling
+  let addTask: any, tasks: any[] = [], addTaskDependency: any, updateTask: any, contextTeamMembers: any[] = []
+  try {
+    const taskContext = useTaskContext()
+    addTask = taskContext.addTask
+    tasks = taskContext.tasks || []
+    addTaskDependency = taskContext.addTaskDependency
+    updateTask = taskContext.updateTask
+    contextTeamMembers = taskContext.teamMembers || []
+  } catch (error) {
+    console.warn('TaskContext not available in form component')
+    // Provide fallback functions
+    addTask = async () => { throw new Error('Task context not available') }
+    updateTask = async () => { throw new Error('Task context not available') }
+    addTaskDependency = () => { throw new Error('Task context not available') }
+  }
+  
+  // Use the team members from the earlier context call or fallback to context team members
+  const finalTeamMembers = teamMembers.length > 0 ? teamMembers : contextTeamMembers
   const { projects } = useProjectContext()
 
   const [selectedDependencies, setSelectedDependencies] = useState<
@@ -129,12 +148,12 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
   const currentProjectId = form.watch("projectId")
   const projectTasks = tasks.filter((task) => task.projectId === currentProjectId)
 
-  function handleSubmit(values: z.infer<typeof formSchema>) {
+async function handleSubmit(values: z.infer<typeof formSchema>) {
     // If onSubmit prop is provided (edit mode), use it
     if (onSubmit) {
       // Find the project to get its name
       const project = projects.find((p) => p.id === values.projectId)
-      const assignedTo = teamMembers.find((m) => m.id === values.assignedToId)?.name || "Unknown"
+  const assignedTo = finalTeamMembers?.find((m) => m.id === values.assignedToId)?.name || "Unknown"
 
       if (!project) {
         toast({
@@ -187,7 +206,7 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
     // Original create logic
     // Find the project to get its name
     const project = projects.find((p) => p.id === values.projectId)
-    const assignedTo = teamMembers.find((m) => m.id === values.assignedToId)?.name || "Unknown"
+  const assignedTo = finalTeamMembers?.find((m) => m.id === values.assignedToId)?.name || "Unknown"
 
     if (!project) {
       toast({
@@ -217,35 +236,44 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
       urgent: "Urgent",
     }
 
-    // Create the new task
-    const newTaskId = addTask({
-      name: values.name,
-      project: project.name,
-      projectId: values.projectId,
-      assignedTo: values.assignedToId,
-      category: values.category,
-      dueDate: formattedDueDate,
-      priority: priorityMap[values.priority],
-      status: statusMap[values.status],
-      brief: values.brief,
-      details: values.details,
-    })
+    try {
+      // Create the new task
+      const newTaskId = await addTask({
+        name: values.name,
+        project: project.name,
+        projectId: values.projectId,
+        assignedTo: values.assignedToId,
+        category: values.category,
+        dueDate: formattedDueDate,
+        priority: priorityMap[values.priority],
+        status: statusMap[values.status],
+        brief: values.brief,
+        details: values.details,
+      })
 
-    // Add dependencies
-    selectedDependencies.forEach((dep) => {
-      addTaskDependency(newTaskId, dep.taskId, dep.type)
-    })
+      // Add dependencies
+      selectedDependencies.forEach((dep) => {
+        addTaskDependency(newTaskId, dep.taskId, dep.type)
+      })
 
-    toast({
-      title: "Task created",
-      description: `${values.name} has been added to your tasks.`,
-    })
+      toast({
+        title: "Task created",
+        description: `${values.name} has been added to your tasks.`,
+      })
 
-    // Redirect to the new task or tasks list
-    if (projectId) {
-      router.push(`/dashboard/projects/${projectId}?tab=tasks`)
-    } else {
-      router.push("/dashboard/tasks")
+      // Redirect to the new task or tasks list
+      if (projectId) {
+        router.push(`/dashboard/projects/${projectId}?tab=tasks`)
+      } else {
+        router.push("/dashboard/tasks")
+      }
+    } catch (error) {
+      console.error('Error creating task:', error)
+      toast({
+        title: "Error",
+        description: "Failed to create task. Please try again.",
+        variant: "destructive",
+      })
     }
   }
 
@@ -359,7 +387,7 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {teamMembers.map((member) => (
+                        {finalTeamMembers.map((member) => (
                           <SelectItem key={member.id} value={member.id}>
                             {member.name}
                           </SelectItem>
@@ -384,7 +412,7 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {teamMembers.map((member) => (
+                        {finalTeamMembers.map((member) => (
                           <SelectItem key={member.id} value={member.id}>
                             {member.name}
                           </SelectItem>

@@ -8,7 +8,7 @@ export default function ProjectsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <PageHeader heading="Projects" subheading="Manage your agency projects and their details." />
+        <PageHeader heading="Projects" subheading="Manage your Zoolyum projects and their details." />
         <Link href="/dashboard/projects/new">
           <Button className="bg-primary hover:bg-primary/90 text-primary-foreground">
             <Plus className="mr-2 h-4 w-4" />

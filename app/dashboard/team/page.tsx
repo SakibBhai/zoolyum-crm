@@ -66,10 +66,9 @@ export default function TeamPage() {
       setLocalTeamMembers(transformedMembers)
     } catch (error) {
       console.error('Error fetching team members:', error)
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Failed to load team members. Please try again.",
-        variant: "destructive",
+        style: { backgroundColor: '#ef4444', color: '#fff' },
       })
     } finally {
       setLoading(false)
@@ -82,10 +81,9 @@ export default function TeamPage() {
 
   const handleAddMember = (newMember: TeamMember) => {
     setLocalTeamMembers(prev => [...prev, newMember])
-    toast({
-      title: "Success",
-      description: "Team member added successfully!",
-    })
+      toast("Success", {
+        description: "Team member added successfully!",
+      })
   }
 
   const handleUpdateMember = async (id: string, updates: Partial<TeamMember>) => {
@@ -109,16 +107,14 @@ export default function TeamPage() {
         )
       )
       
-      toast({
-        title: "Success",
+      toast("Success", {
         description: "Team member updated successfully!",
       })
     } catch (error) {
       console.error('Error updating team member:', error)
-      toast({
-        title: "Error",
-        description: "Failed to update team member. Please try again.",
-        variant: "destructive",
+      toast("Error", {
+        description: "Failed to update team member. Please try again.", 
+        style: { backgroundColor: '#ef4444', color: '#fff' },
       })
     }
   }
@@ -135,16 +131,14 @@ export default function TeamPage() {
 
       setLocalTeamMembers(prev => prev.filter(member => member.id !== id))
       
-      toast({
-        title: "Success",
+      toast("Success", {
         description: "Team member removed successfully!",
       })
     } catch (error) {
       console.error('Error deleting team member:', error)
-      toast({
-        title: "Error",
+      toast("Error", {
         description: "Failed to remove team member. Please try again.",
-        variant: "destructive",
+        style: { backgroundColor: '#ef4444', color: '#fff' },
       })
     }
   }

@@ -15,7 +15,7 @@ export function DashboardHeader() {
     <div className="flex items-center justify-between">
       <div className="space-y-1">
         <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-        <p className="text-muted-foreground">Welcome to your agency CRM dashboard.</p>
+        <p className="text-muted-foreground">Welcome to your Zoolyum CRM dashboard.</p>
       </div>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>

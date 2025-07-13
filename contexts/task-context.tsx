@@ -3,6 +3,7 @@
 import type React from "react"
 import { createContext, useContext, useState, useEffect } from "react"
 import type { Task, StatusHistoryEntry, TaskDependency } from "@/types/task"
+import type { TeamMember } from "@/types/team"
 
 // UUID generation function
 function generateUUID(): string {
@@ -19,6 +20,7 @@ function generateUUID(): string {
 
 type TaskContextType = {
   tasks: Task[]
+  teamMembers: TeamMember[] // Add team members to context
   addTask: (task: Omit<Task, "id" | "statusHistory" | "dependencies">) => Promise<string>
   updateTask: (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => Promise<void>
   deleteTask: (taskId: string) => Promise<{ success: boolean; error?: string }>
@@ -32,12 +34,27 @@ type TaskContextType = {
     related: Task[]
   }
   refreshTasks: () => void
+  refreshTeamMembers: () => Promise<void> // Add method to refresh team members
 }
 
 const TaskContext = createContext<TaskContextType | undefined>(undefined)
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+
+  // Fetch team members from database
+  const fetchTeamMembers = async () => {
+    try {
+      const response = await fetch('/api/team')
+      if (response.ok) {
+        const data = await response.json()
+        setTeamMembers(data)
+      }
+    } catch (error) {
+      console.error('Error fetching team members:', error)
+    }
+  }
 
   // Fetch tasks from database
   const fetchTasks = async () => {
@@ -70,6 +87,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     fetchTasks()
+    fetchTeamMembers()
   }, [])
 
   const addTask = async (task: Omit<Task, "id" | "statusHistory" | "dependencies">) => {
@@ -339,6 +357,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     <TaskContext.Provider
       value={{
         tasks,
+        teamMembers, // Add teamMembers to context value
         addTask,
         updateTask,
         deleteTask,
@@ -348,6 +367,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         removeTaskDependency,
         getTaskDependencies,
         refreshTasks: fetchTasks,
+        refreshTeamMembers: fetchTeamMembers, // Add refreshTeamMembers method
       }}
     >
       {children}

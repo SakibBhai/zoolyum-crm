@@ -14,7 +14,7 @@ export default function NewClientPage() {
             <span className="sr-only">Back</span>
           </Button>
         </Link>
-        <PageHeader heading="New Client" subheading="Add a new client to your agency CRM." />
+        <PageHeader heading="New Client" subheading="Add a new client to your Zoolyum CRM." />
       </div>
       <ClientForm />
     </div>

@@ -94,7 +94,7 @@ export function Sidebar() {
           <div className="flex flex-col h-full">
             <div className="px-3 py-4 border-b">
               <div className="flex items-center justify-between mb-2">
-                <h2 className="text-lg font-semibold">Agency CRM</h2>
+                <h2 className="text-lg font-semibold">Zoolyum CRM</h2>
                 <Button variant="ghost" size="icon" onClick={() => setOpen(false)}>
                   <X className="h-5 w-5" />
                   <span className="sr-only">Close</span>
@@ -133,7 +133,7 @@ export function Sidebar() {
       <aside className="hidden md:flex md:w-64 md:flex-col md:fixed md:inset-y-0 z-[80] bg-background border-r">
         <div className="flex flex-col h-full">
           <div className="px-3 py-4 border-b">
-            <h2 className="text-lg font-semibold">Agency CRM</h2>
+            <h2 className="text-lg font-semibold">Zoolyum CRM</h2>
           </div>
           <div className="flex-1 overflow-auto py-2">
             <nav className="grid items-start px-2 gap-1">

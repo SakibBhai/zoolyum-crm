@@ -8,7 +8,7 @@ export default function TasksPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <PageHeader heading="Tasks" subheading="Manage your agency tasks and assignments." />
+        <PageHeader heading="Tasks" subheading="Manage your Zoolyum tasks and assignments." />
         <Link href="/dashboard/tasks/new">
           <Button>
             <Plus className="mr-2 h-4 w-4" />

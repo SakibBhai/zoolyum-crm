@@ -271,24 +271,20 @@ export const teamService = {
         SET 
           name = ${updates.name},
           email = ${updates.email},
-          role = ${updates.role},
+          title = ${updates.title || updates.role},
+          role = ${updates.role || updates.title},
           department = ${updates.department},
-          department_id = ${updates.departmentId},
           phone = ${updates.phone},
           bio = ${updates.bio},
-          skills = ${JSON.stringify(updates.skills || [])},
-          avatar = ${updates.avatar},
-          linkedin = ${updates.linkedin},
-          twitter = ${updates.twitter},
+          skills = ${updates.skills || []},
           location = ${updates.location},
-          salary = ${updates.salary},
-          manager = ${updates.manager},
-          performance_rating = ${updates.performanceRating},
-          emergency_contact_name = ${updates.emergencyContact?.name},
-          emergency_contact_relationship = ${updates.emergencyContact?.relationship},
-          emergency_contact_phone = ${updates.emergencyContact?.phone},
-          emergency_contact_email = ${updates.emergencyContact?.email},
-          is_active = ${updates.isActive},
+          social_linkedin = ${updates.linkedin || updates.social_linkedin},
+          social_twitter = ${updates.twitter || updates.social_twitter},
+          social_github = ${updates.social_github},
+          social_portfolio = ${updates.social_portfolio},
+          avatar_url = ${updates.avatar || updates.avatar_url},
+          is_lead = ${updates.is_lead},
+          is_active = ${updates.isActive !== undefined ? updates.isActive : updates.is_active},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
@@ -317,12 +313,7 @@ export const teamService = {
   async getById(id: string) {
     try {
       const [teamMember] = await sql`
-        SELECT 
-          tm.*,
-          d.name as department_name
-        FROM team_members tm
-        LEFT JOIN departments d ON tm.department_id = d.id
-        WHERE tm.id = ${id}
+        SELECT * FROM team_members WHERE id = ${id}
       `
       return teamMember
     } catch (error) {
