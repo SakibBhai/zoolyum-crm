@@ -238,6 +238,7 @@ export function AddTeamMemberForm({ onAddMember, departments }: AddTeamMemberFor
           email: newMember.emergency_contact_email,
         },
         isActive: newMember.is_active,
+        joinDate: newMember.join_date || new Date().toISOString().split('T')[0],
       }
 
       onAddMember(teamMember)

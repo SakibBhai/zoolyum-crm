@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useRecurringInvoiceContext } from "@/contexts/recurring-invoice-context"
 import { useProjectContext } from "@/contexts/project-context"
@@ -37,7 +37,7 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
     new Set(
       projects.map((project) => ({
         id: project.clientId,
-        name: project.clientName,
+        name: project.client,
       })),
     ),
     (client) => JSON.stringify(client),
@@ -308,7 +308,7 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
                 <Label>Start Date</Label>
                 <DatePicker
                   selected={new Date(formData.startDate)}
-                  onSelect={(date) => setFormData({ ...formData, startDate: format(date, "yyyy-MM-dd") })}
+                  onSelect={(date) => date && setFormData({ ...formData, startDate: format(date, "yyyy-MM-dd") })}
                 />
                 <p className="text-sm text-muted-foreground">First invoice will be generated on this date</p>
               </div>
@@ -317,8 +317,7 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
                 <Label>End Date (Optional)</Label>
                 <DatePicker
                   selected={formData.endDate ? new Date(formData.endDate) : undefined}
-                  onSelect={(date) => setFormData({ ...formData, endDate: format(date, "yyyy-MM-dd") })}
-                  placeholderText="No end date"
+                  onSelect={(date) => setFormData({ ...formData, endDate: date ? format(date, "yyyy-MM-dd") : "" })}
                 />
                 <p className="text-sm text-muted-foreground">Leave blank for indefinite recurrence</p>
               </div>

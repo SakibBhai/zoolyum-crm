@@ -139,6 +139,18 @@ export function RecurringInvoiceProvider({ children }: { children: ReactNode }) 
     // Create invoice from template
     const invoiceData = {
       clientId: template.clientId,
+      recipientInfo: {
+        id: template.clientId,
+        name: "", // This would need to be populated from client data
+        email: "", // This would need to be populated from client data
+        address: {
+          street: "",
+          city: "",
+          state: "",
+          zipCode: "",
+          country: "",
+        },
+      },
       projectId: template.projectId,
       issueDate: new Date().toISOString().split("T")[0],
       dueDate: calculateNextGenerationDate(new Date().toISOString().split("T")[0], "monthly"), // Due in 30 days

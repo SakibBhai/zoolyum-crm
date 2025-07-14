@@ -228,6 +228,34 @@ export const projectsService = {
       throw error
     }
   },
+
+  async createProjectVersionHistory(versionData: any) {
+    try {
+      const [newVersion] = await sql`
+        INSERT INTO project_version_history (
+          project_id,
+          changed_fields,
+          previous_values,
+          new_values,
+          changed_by,
+          change_reason
+        )
+        VALUES (
+          ${versionData.project_id},
+          ${JSON.stringify(versionData.changed_fields)},
+          ${versionData.previous_values},
+          ${versionData.new_values},
+          ${versionData.changed_by || 'system'},
+          ${versionData.change_reason || 'Project updated'}
+        )
+        RETURNING *
+      `
+      return newVersion
+    } catch (error) {
+      console.error("Error creating project version history:", error)
+      throw error
+    }
+  },
 }
 
 export const teamService = {
@@ -520,20 +548,50 @@ export const tasksService = {
 
   async update(id: string, updates: any) {
     try {
+      // First get the current task data to preserve existing values
+      const [currentTask] = await sql`SELECT * FROM tasks WHERE id = ${id}`
+      
+      if (!currentTask) {
+        throw new Error("Task not found")
+      }
+      
+      // Map frontend field names to database field names and merge with current data
+      const updatedData = {
+        title: updates.title !== undefined ? updates.title : 
+               (updates.name !== undefined ? updates.name : currentTask.title),
+        description: updates.description !== undefined ? updates.description : 
+                    (updates.details !== undefined ? updates.details : 
+                     (updates.brief !== undefined ? updates.brief : currentTask.description)),
+        project_id: updates.project_id !== undefined ? updates.project_id : 
+                   (updates.projectId !== undefined ? updates.projectId : currentTask.project_id),
+        assigned_to: updates.assigned_to !== undefined ? updates.assigned_to : 
+                    (updates.assignedTo !== undefined ? updates.assignedTo : 
+                     (updates.assignee_id !== undefined ? updates.assignee_id : currentTask.assigned_to)),
+        priority: updates.priority !== undefined ? updates.priority : currentTask.priority,
+        status: updates.status !== undefined ? updates.status : currentTask.status,
+        due_date: updates.due_date !== undefined ? updates.due_date : 
+                 (updates.dueDate !== undefined ? updates.dueDate : currentTask.due_date),
+        estimated_hours: updates.estimated_hours !== undefined ? updates.estimated_hours : currentTask.estimated_hours,
+        actual_hours: updates.actual_hours !== undefined ? updates.actual_hours : currentTask.actual_hours,
+        is_content_related: updates.is_content_related !== undefined ? updates.is_content_related : 
+                           (updates.category === 'content' ? true : currentTask.is_content_related),
+        dependencies: updates.dependencies !== undefined ? updates.dependencies : currentTask.dependencies
+      }
+      
       const [updatedTask] = await sql`
         UPDATE tasks 
         SET 
-          title = ${updates.title},
-          description = ${updates.description},
-          project_id = ${updates.project_id},
-          assigned_to = ${updates.assigned_to || updates.assignee_id},
-          priority = ${updates.priority},
-          status = ${updates.status},
-          due_date = ${updates.due_date},
-          estimated_hours = ${updates.estimated_hours},
-          actual_hours = ${updates.actual_hours},
-          is_content_related = ${updates.is_content_related},
-          dependencies = ${updates.dependencies || []},
+          title = ${updatedData.title},
+          description = ${updatedData.description},
+          project_id = ${updatedData.project_id},
+          assigned_to = ${updatedData.assigned_to},
+          priority = ${updatedData.priority},
+          status = ${updatedData.status},
+          due_date = ${updatedData.due_date},
+          estimated_hours = ${updatedData.estimated_hours},
+          actual_hours = ${updatedData.actual_hours},
+          is_content_related = ${updatedData.is_content_related},
+          dependencies = ${updatedData.dependencies || []},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *

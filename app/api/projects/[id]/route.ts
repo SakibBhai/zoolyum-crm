@@ -1,9 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { projectsService } from "@/lib/neon-db"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const project = await projectsService.getById(params.id)
+    const { id } = await params
+    const project = await projectsService.getById(id)
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 })
     }
@@ -14,10 +15,11 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params
     const body = await request.json()
-    const updatedProject = await projectsService.update(params.id, body)
+    const updatedProject = await projectsService.update(id, body)
     return NextResponse.json(updatedProject)
   } catch (error) {
     console.error("Error in PUT /api/projects/[id]:", error)
@@ -25,9 +27,10 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await projectsService.delete(params.id)
+    const { id } = await params
+    await projectsService.delete(id)
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error("Error in DELETE /api/projects/[id]:", error)
@@ -41,9 +44,10 @@ export async function DELETE(request: NextRequest, { params }: { params: { id: s
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
     // Add last_modified timestamp
@@ -63,12 +67,12 @@ export async function PATCH(
     // Create version history entry if enabled
     if (process.env.ENABLE_VERSION_HISTORY === 'true') {
       // Get current project state
-      const currentProject = await projectsService.getById(params.id)
+      const currentProject = await projectsService.getById(id)
       
       if (currentProject) {
         // Create version history entry
-        await projectsService.createVersionHistoryEntry({
-          project_id: params.id,
+        await projectsService.createProjectVersionHistory({
+          project_id: id,
           changed_fields: changedFields,
           previous_values: JSON.stringify(
             changedFields.reduce((acc, field) => {
@@ -84,7 +88,7 @@ export async function PATCH(
     }
     
     // Perform the update with only the changed fields
-    const updatedProject = await projectsService.update(params.id, updatedFields)
+    const updatedProject = await projectsService.update(id, updatedFields)
     
     // Send webhooks for team notifications if configured
     if (process.env.ENABLE_WEBHOOKS === 'true') {
@@ -101,7 +105,7 @@ export async function PATCH(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               event: 'project.updated',
-              projectId: params.id,
+              projectId: id,
               changedFields,
               timestamp: new Date().toISOString()
             })

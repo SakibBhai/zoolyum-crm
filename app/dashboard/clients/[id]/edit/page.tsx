@@ -20,17 +20,28 @@ interface Client {
   contract_details?: string
 }
 
-export default function EditClientPage({ params }: { params: { id: string } }) {
+export default function EditClientPage({ params }: { params: Promise<{ id: string }> }) {
   const [client, setClient] = useState<Client | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [clientId, setClientId] = useState<string | null>(null)
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
+    async function initializeParams() {
+      const { id } = await params
+      setClientId(id)
+    }
+    initializeParams()
+  }, [params])
+
+  useEffect(() => {
+    if (!clientId) return
+    
     async function fetchClient() {
       try {
         setIsLoading(true)
-        const response = await fetch(`/api/clients/${params.id}`)
+        const response = await fetch(`/api/clients/${clientId}`)
         
         if (!response.ok) {
           throw new Error("Failed to fetch client")
@@ -51,12 +62,12 @@ export default function EditClientPage({ params }: { params: { id: string } }) {
     }
 
     fetchClient()
-  }, [params.id, toast])
+  }, [clientId, toast])
 
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href={`/dashboard/clients/${params.id}`}>
+        <Link href={`/dashboard/clients/${clientId}`}>
           <Button variant="outline" size="icon">
             <ArrowLeft className="h-4 w-4" />
             <span className="sr-only">Back</span>

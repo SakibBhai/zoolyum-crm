@@ -9,13 +9,13 @@ import { ArrowLeft, Pencil } from "lucide-react"
 import Link from "next/link"
 
 export default async function ProjectPage({
-
   params,
   searchParams,
-}: { params: Promise<{ id: string }>; searchParams: { tab?: string } }) {
+}: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params;
+  const resolvedSearchParams = await searchParams;
   // Default to 'details' tab if none specified
-  const defaultTab = searchParams.tab || "details"
+  const defaultTab = resolvedSearchParams.tab || "details"
 
   return (
     <div className="space-y-6">
@@ -29,7 +29,7 @@ export default async function ProjectPage({
           </Link>
           <PageHeader
             heading="Project Details"
-            subheading={`View and manage project information for ID: ${params.id}`}
+            subheading={`View and manage project information for ID: ${id}`}
           />
         </div>
         <Link href={`/dashboard/projects/${id}/edit`}>
@@ -40,7 +40,7 @@ export default async function ProjectPage({
         </Link>
       </div>
 
-      <ProjectMetrics projectId={params.id} />
+      <ProjectMetrics projectId={id} />
 
       <Tabs defaultValue={defaultTab}>
         <TabsList>
@@ -50,13 +50,13 @@ export default async function ProjectPage({
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="details" className="mt-4">
-          <ProjectDetails id={params.id} />
+          <ProjectDetails id={id} />
         </TabsContent>
         <TabsContent value="tasks" className="mt-4">
-          <ProjectTasks projectId={params.id} />
+          <ProjectTasks projectId={id} />
         </TabsContent>
         <TabsContent value="calendar" className="mt-4">
-          <ContentCalendar projectId={params.id} />
+          <ContentCalendar projectId={id} />
         </TabsContent>
         <TabsContent value="reports" className="mt-4">
           <div className="rounded-lg border p-6">

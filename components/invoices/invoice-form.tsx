@@ -107,7 +107,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
   const [previewOpen, setPreviewOpen] = useState(false)
   const [saveAsDraft, setSaveAsDraft] = useState(false)
   const [formProgress, setFormProgress] = useState(0)
-  const prevClientIdRef = useRef<string>()
+  const prevClientIdRef = useRef<string | undefined>(undefined)
 
   // Initialize form with default values or existing invoice data
   const defaultValues = invoice
@@ -269,9 +269,24 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
   // Handle form submission
   const onSubmit = (data: InvoiceFormSchema) => {
     try {
+      // Transform the data to ensure address fields are strings, not undefined
+      const transformedData = {
+        ...data,
+        recipientInfo: {
+          ...data.recipientInfo,
+          address: {
+            street: data.recipientInfo.address.street || "",
+            city: data.recipientInfo.address.city || "",
+            state: data.recipientInfo.address.state || "",
+            zipCode: data.recipientInfo.address.zipCode || "",
+            country: data.recipientInfo.address.country || "",
+          },
+        },
+      }
+
       if (isEditing && invoice) {
         const updatedInvoice = updateInvoice(invoice.id, {
-          ...data,
+          ...transformedData,
           status: saveAsDraft ? "draft" : invoice.status,
         })
         toast({
@@ -280,10 +295,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
         })
         router.push(`/dashboard/invoices/${invoice.id}`)
       } else {
-        const newInvoice = createInvoice({
-          ...data,
-          status: saveAsDraft ? "draft" : "sent",
-        })
+        const newInvoice = createInvoice(transformedData)
         toast({
           title: "Success",
           description: `Invoice ${newInvoice.invoiceNumber} created successfully.`,
@@ -585,7 +597,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
                       <DatePicker
                         selected={field.value ? new Date(field.value) : undefined}
                         onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
-                        minDate={formValues.issueDate ? new Date(formValues.issueDate) : undefined}
+                        fromDate={formValues.issueDate ? new Date(formValues.issueDate) : undefined}
                       />
                     )}
                   />

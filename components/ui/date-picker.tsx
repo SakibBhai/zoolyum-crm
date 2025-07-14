@@ -11,9 +11,12 @@ interface DatePickerProps {
   selected?: Date
   onSelect?: (date: Date | undefined) => void
   className?: string
+  disabled?: (date: Date) => boolean
+  fromDate?: Date
+  toDate?: Date
 }
 
-export function DatePicker({ selected, onSelect, className }: DatePickerProps) {
+export function DatePicker({ selected, onSelect, className, disabled, fromDate, toDate }: DatePickerProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -26,7 +29,15 @@ export function DatePicker({ selected, onSelect, className }: DatePickerProps) {
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
-        <Calendar mode="single" selected={selected} onSelect={onSelect} initialFocus />
+        <Calendar 
+          mode="single" 
+          selected={selected} 
+          onSelect={onSelect} 
+          disabled={disabled}
+          fromDate={fromDate}
+          toDate={toDate}
+          initialFocus 
+        />
       </PopoverContent>
     </Popover>
   )

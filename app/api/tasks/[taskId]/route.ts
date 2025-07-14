@@ -3,7 +3,7 @@ import { tasksService } from '@/lib/neon-db'
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { taskId: string } }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
     // TODO: Implement proper authentication
@@ -11,7 +11,7 @@ export async function PUT(
     const userId = 'dev-user-id'
 
     // Validate taskId parameter
-    const taskId = params.taskId
+    const { taskId } = await params
     if (!taskId || typeof taskId !== 'string') {
       return NextResponse.json(
         { error: 'Bad Request: Invalid task ID' },
@@ -54,14 +54,14 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { taskId: string } }
+  { params }: { params: Promise<{ taskId: string }> }
 ) {
   try {
     // TODO: Implement proper authentication
     // For now, bypassing authentication for development
 
     // Validate taskId parameter
-    const taskId = params.taskId
+    const { taskId } = await params
     if (!taskId || typeof taskId !== 'string') {
       return NextResponse.json(
         { error: 'Bad Request: Invalid task ID' },

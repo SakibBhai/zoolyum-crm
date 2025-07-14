@@ -11,7 +11,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { format } from "date-fns"
 import { Plus, MoreHorizontal, Search, FileText, Eye, Edit, Trash2, Send } from "lucide-react"
-import { Pagination, PaginationNext } from "@/components/ui/pagination"
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@/components/ui/pagination"
 import { toast } from "@/components/ui/use-toast"
 import {
   Dialog,
@@ -101,7 +108,7 @@ export function InvoiceList() {
       case "sent":
         return <Badge variant="secondary">Sent</Badge>
       case "paid":
-        return <Badge variant="success">Paid</Badge>
+        return <Badge variant="secondary">Paid</Badge>
       case "overdue":
         return <Badge variant="destructive">Overdue</Badge>
       case "cancelled":
@@ -269,7 +276,7 @@ export function InvoiceList() {
                             )}
                             {invoice.status === "sent" && (
                               <DropdownMenuItem onClick={() => handleStatusChange(invoice, "paid")}>
-                                <Badge variant="success" className="h-4 mr-2">
+                                <Badge variant="secondary" className="h-4 mr-2">
                                   Paid
                                 </Badge>
                                 Mark as Paid
@@ -298,17 +305,25 @@ export function InvoiceList() {
           {totalPages > 1 && (
             <div className="flex justify-center mt-4">
               <Pagination>
-                <Pagination.Prev
-                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  disabled={currentPage === 1}
-                />
-                <div className="flex items-center mx-4">
-                  Page {currentPage} of {totalPages}
-                </div>
-                <PaginationNext
-                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                />
+                <PaginationContent>
+                  <PaginationItem>
+                    <PaginationPrevious
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                      className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                  <PaginationItem>
+                    <span className="flex items-center px-4">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                  </PaginationItem>
+                  <PaginationItem>
+                    <PaginationNext
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    />
+                  </PaginationItem>
+                </PaginationContent>
               </Pagination>
             </div>
           )}

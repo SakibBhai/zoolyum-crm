@@ -16,6 +16,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { useProjectContext } from "@/contexts/project-context"
 
 // Mock data for team members
 const teamMembers = [
@@ -62,11 +63,16 @@ const formSchema = z.object({
     // Remove the server-side validation that uses new Date()
     // We'll add client-side validation in the form component
   ,
-  status: z.string().default("not_started"),
+  status: z.string().optional(),
   description: z.string().optional(),
 })
 
 interface Client {
+  id: string
+  name: string
+}
+
+interface TeamMember {
   id: string
   name: string
 }
@@ -78,7 +84,7 @@ interface QuickProjectFormProps {
 }
 
 export function QuickProjectForm({ onSuccess, onCancel, defaultClientId }: QuickProjectFormProps) {
-  const { projects, addProject } = useProjectContext()
+  const { projects } = useProjectContext()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [clients, setClients] = useState<Client[]>([])
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
@@ -298,7 +304,12 @@ export function QuickProjectForm({ onSuccess, onCancel, defaultClientId }: Quick
                         </FormControl>
                       </PopoverTrigger>
                       <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus />
+                        <Calendar
+                          mode="single"
+                          selected={field.value}
+                          onSelect={(date: Date | undefined) => field.onChange(date)}
+                          initialFocus
+                        />
                       </PopoverContent>
                     </Popover>
                     <FormMessage />

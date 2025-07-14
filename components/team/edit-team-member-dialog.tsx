@@ -47,7 +47,6 @@ export function EditTeamMemberDialog({ member, open, onOpenChange, onSave }: Edi
     location: member.location || "",
     linkedin: member.linkedin || "",
     twitter: member.twitter || "",
-    status: member.status,
     skills: member.skills || []
   })
   const [newSkill, setNewSkill] = useState("")
@@ -65,7 +64,6 @@ export function EditTeamMemberDialog({ member, open, onOpenChange, onSave }: Edi
         location: member.location || "",
         linkedin: member.linkedin || "",
         twitter: member.twitter || "",
-        status: member.status,
         skills: member.skills || []
       })
     }
@@ -120,7 +118,6 @@ export function EditTeamMemberDialog({ member, open, onOpenChange, onSave }: Edi
       if (formData.location !== (member.location || "")) updates.location = formData.location
       if (formData.linkedin !== (member.linkedin || "")) updates.linkedin = formData.linkedin
       if (formData.twitter !== (member.twitter || "")) updates.twitter = formData.twitter
-      if (formData.status !== member.status) updates.status = formData.status
       if (JSON.stringify(formData.skills) !== JSON.stringify(member.skills || [])) {
         updates.skills = formData.skills
       }
@@ -232,23 +229,6 @@ export function EditTeamMemberDialog({ member, open, onOpenChange, onSave }: Edi
               placeholder="Brief description about the team member"
               rows={3}
             />
-          </div>
-          
-          {/* Status */}
-          <div className="space-y-2">
-            <Label htmlFor="status">Status</Label>
-            <Select value={formData.status} onValueChange={(value) => handleInputChange("status", value as "active" | "away" | "offline")}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                {statuses.map((status) => (
-                  <SelectItem key={status.value} value={status.value}>
-                    {status.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           
           {/* Skills */}

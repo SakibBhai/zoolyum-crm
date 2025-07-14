@@ -182,12 +182,67 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
   const updateTask = async (taskId: string, updates: Partial<Omit<Task, "id" | "statusHistory" | "dependencies">>) => {
     try {
-      const response = await fetch(`/api/tasks/${taskId}`, {
+      // Transform status from display format to database format if status is being updated
+      const statusMap: Record<string, string> = {
+        'To Do': 'todo',
+        'In Progress': 'in_progress',
+        'Review': 'review',
+        'Done': 'done',
+        'Backlog': 'backlog',
+      }
+
+      // Transform priority from display format to database format if priority is being updated
+      const priorityMap: Record<string, string> = {
+        'Low': 'low',
+        'Medium': 'medium',
+        'High': 'high',
+        'Urgent': 'urgent',
+      }
+
+      // Transform the updates to match the database schema
+      const dbUpdates: any = {}
+      
+      if (updates.status) {
+        dbUpdates.status = statusMap[updates.status] || updates.status.toLowerCase().replace(' ', '_').replace('to_do', 'todo')
+      }
+      
+      if (updates.priority) {
+        dbUpdates.priority = priorityMap[updates.priority] || updates.priority.toLowerCase()
+      }
+      
+      if (updates.name) {
+        dbUpdates.title = updates.name
+      }
+      
+      if (updates.brief || updates.details) {
+        dbUpdates.description = (updates.brief || '') + (updates.details ? '\n\n' + updates.details : '')
+      }
+      
+      if (updates.projectId) {
+        dbUpdates.project_id = updates.projectId
+      }
+      
+      if (updates.assignedTo) {
+        dbUpdates.assigned_to = updates.assignedTo
+      }
+      
+      if (updates.dueDate) {
+        dbUpdates.due_date = updates.dueDate
+      }
+      
+      // Copy over any other fields that don't need transformation
+      Object.keys(updates).forEach(key => {
+        if (!['status', 'priority', 'name', 'brief', 'details', 'projectId', 'assignedTo', 'dueDate'].includes(key)) {
+          dbUpdates[key] = (updates as any)[key]
+        }
+      })
+
+      const response = await fetch(`/api/tasks`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updates),
+        body: JSON.stringify({ id: taskId, ...dbUpdates }),
       })
 
       if (response.ok) {
@@ -222,11 +277,12 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const deleteTask = async (taskId: string) => {
     try {
       // Call API to delete from database
-      const response = await fetch(`/api/tasks/${taskId}`, {
+      const response = await fetch(`/api/tasks`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({ id: taskId }),
       })
 
       if (!response.ok) {
@@ -244,30 +300,39 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const updateTaskStatus = (taskId: string, newStatus: string, userId: string, userName: string) => {
-    setTasks((prevTasks) =>
-      prevTasks.map((task) => {
-        if (task.id === taskId) {
-          // Create a new status history entry
-          const historyEntry: StatusHistoryEntry = {
-            id: generateUUID(),
-            date: new Date().toISOString(),
-            oldStatus: task.status,
-            newStatus: newStatus,
-            userId: userId,
-            userName: userName,
-          }
+  const updateTaskStatus = async (taskId: string, newStatus: string, userId: string, userName: string) => {
+    try {
+      // First update the database via API
+      await updateTask(taskId, { status: newStatus })
+      
+      // Then update local state with status history
+      setTasks((prevTasks) =>
+        prevTasks.map((task) => {
+          if (task.id === taskId) {
+            // Create a new status history entry
+            const historyEntry: StatusHistoryEntry = {
+              id: generateUUID(),
+              date: new Date().toISOString(),
+              oldStatus: task.status,
+              newStatus: newStatus,
+              userId: userId,
+              userName: userName,
+            }
 
-          // Return updated task with new status and history
-          return {
-            ...task,
-            status: newStatus,
-            statusHistory: [...(task.statusHistory || []), historyEntry],
+            // Return updated task with new status and history
+            return {
+              ...task,
+              status: newStatus,
+              statusHistory: [...(task.statusHistory || []), historyEntry],
+            }
           }
-        }
-        return task
-      }),
-    )
+          return task
+        }),
+      )
+    } catch (error) {
+      console.error('Error updating task status:', error)
+      throw error
+    }
   }
 
   const getTaskById = (taskId: string) => {

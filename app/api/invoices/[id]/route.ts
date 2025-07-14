@@ -3,10 +3,11 @@ import { invoicesService } from "@/lib/neon-db"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const invoice = await invoicesService.getById(params.id)
+    const { id } = await params
+    const invoice = await invoicesService.getById(id)
     if (!invoice) {
       return NextResponse.json({ error: "Invoice not found" }, { status: 404 })
     }
@@ -19,11 +20,12 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
-    const updatedInvoice = await invoicesService.update(params.id, body)
+    const updatedInvoice = await invoicesService.update(id, body)
     return NextResponse.json(updatedInvoice)
   } catch (error) {
     console.error("Error in PUT /api/invoices/[id]:", error)
@@ -33,10 +35,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await invoicesService.delete(params.id)
+    const { id } = await params
+    await invoicesService.delete(id)
     return NextResponse.json({ message: "Invoice deleted successfully" })
   } catch (error) {
     console.error("Error in DELETE /api/invoices/[id]:", error)

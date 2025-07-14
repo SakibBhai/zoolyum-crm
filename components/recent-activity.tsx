@@ -50,7 +50,7 @@ export function RecentActivity() {
             .forEach(task => {
               const assignee = Array.isArray(teamMembers) ? teamMembers.find(member => member.id === task.assigned_to) : null
               const userName = assignee?.name || 'Unknown User'
-              const userInitials = userName.split(' ').map(n => n[0]).join('').toUpperCase()
+              const userInitials = userName.split(' ').map((n: string) => n[0]).join('').toUpperCase()
               
               recentActivities.push({
                 id: `task-${task.id}`,

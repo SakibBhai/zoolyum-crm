@@ -30,11 +30,18 @@ export function TaskStatusSelect({
     name: "Sarah Johnson",
   }
 
-  const handleStatusChange = (newStatus: string) => {
-    setStatus(newStatus)
-    updateTaskStatus(taskId, newStatus, currentUser.id, currentUser.name)
-    if (onStatusChange) {
-      onStatusChange(newStatus)
+  const handleStatusChange = async (newStatus: string) => {
+    try {
+      setStatus(newStatus)
+      await updateTaskStatus(taskId, newStatus, currentUser.id, currentUser.name)
+      if (onStatusChange) {
+        onStatusChange(newStatus)
+      }
+    } catch (error) {
+      console.error('Failed to update task status:', error)
+      // Revert the status change on error
+      setStatus(currentStatus)
+      // You could also show a toast notification here
     }
   }
 

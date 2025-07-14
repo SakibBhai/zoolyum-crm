@@ -75,7 +75,7 @@ function TaskFormSkeleton() {
 export default function NewTaskPage() {
   return (
     <div className="flex flex-col gap-8 pb-10">
-      <PageHeader heading="Create New Task" text="Add a new task to your project" />
+      <PageHeader heading="Create New Task" subheading="Add a new task to your project" />
       <Suspense fallback={<TaskFormSkeleton />}>
         <TaskForm />
       </Suspense>

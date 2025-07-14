@@ -3,10 +3,11 @@ import { teamService } from "@/lib/neon-db"
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const teamMember = await teamService.getById(params.id)
+    const { id } = await params
+    const teamMember = await teamService.getById(id)
     if (!teamMember) {
       return NextResponse.json({ error: "Team member not found" }, { status: 404 })
     }
@@ -19,9 +20,10 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params
     const body = await request.json()
     
     // Validate required fields if they are being updated
@@ -37,15 +39,15 @@ export async function PUT(
       return NextResponse.json({ error: "Role must be at least 2 characters long" }, { status: 400 })
     }
     
-    console.log(`Updating team member ${params.id} with:`, body)
+    console.log(`Updating team member ${id} with:`, body)
     
-    const updatedTeamMember = await teamService.update(params.id, body)
+    const updatedTeamMember = await teamService.update(id, body)
     
     if (!updatedTeamMember) {
       return NextResponse.json({ error: "Team member not found" }, { status: 404 })
     }
     
-    console.log(`Successfully updated team member ${params.id}`)
+    console.log(`Successfully updated team member ${id}`)
     return NextResponse.json(updatedTeamMember)
   } catch (error) {
     console.error("Error in PUT /api/team/[id]:", error)
@@ -69,10 +71,11 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await teamService.delete(params.id)
+    const { id } = await params
+    await teamService.delete(id)
     return NextResponse.json({ message: "Team member deleted successfully" })
   } catch (error) {
     console.error("Error in DELETE /api/team/[id]:", error)

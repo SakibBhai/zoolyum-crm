@@ -68,7 +68,7 @@ const formSchema = z.object({
   }),
   status: z.string(),
   description: z.string().optional(),
-  isRecurring: z.boolean().default(false),
+  isRecurring: z.boolean(),
   recurrencePattern: z.object({
     type: z.string().optional(),
     interval: z.number().optional(),
@@ -77,7 +77,7 @@ const formSchema = z.object({
     monthOfYear: z.number().optional(),
   }).optional(),
   recurrenceEnd: z.date().optional(),
-  priority: z.number().min(1).max(5).default(3),
+  priority: z.number().min(1).max(5),
 }).superRefine((data, ctx) => {
   if (data.isRecurring) {
     if (!data.recurrencePattern?.type) {
@@ -126,13 +126,15 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
 
   const project = getProjectById(projectId)
 
-  const form = useForm<z.infer<typeof formSchema>>({    
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
       clientId: "",
       type: "",
       managerId: "",
+      startDate: new Date(),
+      deadline: new Date(),
       status: "draft",
       description: "",
       isRecurring: false,

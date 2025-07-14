@@ -98,8 +98,8 @@ Zoolyum CRM is a modern, full-stack Customer Relationship Management system buil
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/your-username/v0-zoolyum-crm.git
-   cd v0-zoolyum-crm
+   git clone https://github.com/your-username/zoolyum-crm.git
+cd zoolyum-crm
    ```
 
 2. **Install dependencies**
@@ -146,7 +146,7 @@ Zoolyum CRM is a modern, full-stack Customer Relationship Management system buil
 ## 📁 Project Structure
 
 ```
-v0-zoolyum-crm/
+zoolyum-crm/
 ├── app/                    # Next.js App Router
 │   ├── api/               # API routes
 │   │   ├── clients/       # Client management endpoints
@@ -290,7 +290,7 @@ For support and questions:
 
 - 📧 Email: support@zoolyum.com
 - 📖 Documentation: [docs.zoolyum.com](https://docs.zoolyum.com)
-- 🐛 Issues: [GitHub Issues](https://github.com/your-username/v0-zoolyum-crm/issues)
+- 🐛 Issues: [GitHub Issues](https://github.com/your-username/zoolyum-crm/issues)
 
 ## 🙏 Acknowledgments
 
