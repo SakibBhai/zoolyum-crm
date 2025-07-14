@@ -233,20 +233,35 @@ node test-team-creation.js
 
 ## 🚀 Deployment
 
-### Vercel Deployment (Recommended)
+### Quick Deploy to Vercel
 
-1. **Connect your repository to Vercel**
-2. **Configure environment variables in Vercel dashboard**
-3. **Deploy automatically on push to main branch**
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/your-username/zoolyum-crm)
 
 ### Manual Deployment
 
-```bash
-# Build the application
-npm run build
+For detailed deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md)
 
-# Start production server
-npm start
+**Quick Steps:**
+
+1. **Set Environment Variables** in Vercel:
+   ```bash
+   DATABASE_URL=your_neon_postgresql_url
+   NEXTAUTH_SECRET=your_secret_key
+   NEXTAUTH_URL=https://your-app.vercel.app
+   ```
+
+2. **Deploy**: Connect your GitHub repository to Vercel
+
+3. **Database Setup**: Run migrations after deployment:
+   ```bash
+   npx prisma db push
+   ```
+
+### Environment Configuration
+
+Copy `.env.example` to `.env.local` and configure your environment variables:
+```bash
+cp .env.example .env.local
 ```
 
 ## 🤝 Contributing
