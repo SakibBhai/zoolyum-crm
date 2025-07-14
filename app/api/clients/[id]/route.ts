@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { clientsService } from "@/lib/neon-db"
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   try {
+    const params = await paramsPromise;
     const client = await clientsService.getById(params.id)
     if (!client) {
       return NextResponse.json({ error: "Client not found" }, { status: 404 })
@@ -14,8 +15,9 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   try {
+    const params = await paramsPromise;
     const body = await request.json()
     const updatedClient = await clientsService.update(params.id, body)
     return NextResponse.json(updatedClient)
@@ -25,8 +27,9 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params: paramsPromise }: { params: Promise<{ id: string }> }) {
   try {
+    const params = await paramsPromise;
     await clientsService.delete(params.id)
     return NextResponse.json({ success: true })
   } catch (error) {

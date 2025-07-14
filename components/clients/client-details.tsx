@@ -9,8 +9,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "@/components/ui/use-toast"
-import { supabase } from "@/lib/supabase"
+import { useToast } from "@/hooks/use-toast"
 
 const formSchema = z.object({
   name: z.string().min(2, {
@@ -33,10 +32,11 @@ const formSchema = z.object({
 })
 
 interface ClientDetailsProps {
-  clientId: string | undefined
+  id: string
 }
 
-export function ClientDetails({ clientId }: ClientDetailsProps) {
+export function ClientDetails({ id }: ClientDetailsProps) {
+  const { toast } = useToast()
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -53,12 +53,14 @@ export function ClientDetails({ clientId }: ClientDetailsProps) {
   useEffect(() => {
     async function fetchClientData() {
       try {
-        const { data, error } = await supabase.from("clients").select("*").eq("id", clientId).single()
-
-        if (error) {
-          throw error
+        const response = await fetch(`/api/clients/${id}`)
+        
+        if (!response.ok) {
+          throw new Error("Failed to fetch client")
         }
-
+        
+        const data = await response.json()
+        
         if (data) {
           // Update form with client data
           form.reset({
@@ -81,16 +83,17 @@ export function ClientDetails({ clientId }: ClientDetailsProps) {
       }
     }
 
-    if (clientId) {
-      fetchClientData()
-    }
-  }, [clientId, form, toast])
+    fetchClientData()
+  }, [id, form, toast])
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const { error } = await supabase
-        .from("clients")
-        .update({
+      const response = await fetch(`/api/clients/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
           name: values.name,
           industry: values.industry,
           contact_name: values.contactName,
@@ -98,12 +101,11 @@ export function ClientDetails({ clientId }: ClientDetailsProps) {
           phone: values.phone,
           status: values.status,
           notes: values.notes || "",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", clientId)
-
-      if (error) {
-        throw error
+        }),
+      })
+      
+      if (!response.ok) {
+        throw new Error("Failed to update client")  
       }
 
       toast({

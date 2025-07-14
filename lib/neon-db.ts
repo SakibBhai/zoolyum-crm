@@ -49,16 +49,35 @@ export const clientsService = {
 
   async update(id: string, updates: any) {
     try {
+      // First get the current client data
+      const [currentClient] = await sql`SELECT * FROM clients WHERE id = ${id}`
+      
+      if (!currentClient) {
+        throw new Error("Client not found")
+      }
+      
+      // Merge the updates with current data
+      const updatedData = {
+        name: updates.name !== undefined ? updates.name : currentClient.name,
+        email: updates.email !== undefined ? updates.email : currentClient.email,
+        phone: updates.phone !== undefined ? updates.phone : currentClient.phone,
+        address: updates.address !== undefined ? updates.address : currentClient.address,
+        status: updates.status !== undefined ? updates.status : currentClient.status,
+        billing_terms: updates.billing_terms !== undefined ? updates.billing_terms : currentClient.billing_terms,
+        contract_details: updates.contract_details !== undefined ? updates.contract_details : currentClient.contract_details,
+      }
+      
+      // Update with merged data
       const [updatedClient] = await sql`
         UPDATE clients 
         SET 
-          name = ${updates.name},
-          email = ${updates.email},
-          phone = ${updates.phone},
-          address = ${updates.address},
-          status = ${updates.status},
-          billing_terms = ${updates.billing_terms},
-          contract_details = ${updates.contract_details},
+          name = ${updatedData.name},
+          email = ${updatedData.email},
+          phone = ${updatedData.phone},
+          address = ${updatedData.address},
+          status = ${updatedData.status},
+          billing_terms = ${updatedData.billing_terms},
+          contract_details = ${updatedData.contract_details},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *

@@ -6,7 +6,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ArrowLeft, Pencil } from "lucide-react"
 import Link from "next/link"
 
-export default function ClientPage({ params }: { params: { id: string } }) {
+export default async function ClientPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
