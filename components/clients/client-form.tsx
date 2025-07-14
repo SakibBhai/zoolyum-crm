@@ -29,7 +29,16 @@ const formSchema = z.object({
 })
 
 interface ClientFormProps {
-  clientData?: any
+  clientData?: {
+    id?: string
+    name: string
+    email: string
+    phone: string
+    address?: string
+    status: string
+    billing_terms?: string
+    contract_details?: string
+  }
   isEditing?: boolean
 }
 
@@ -52,7 +61,7 @@ export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const url = isEditing ? `/api/clients/${clientData.id}` : "/api/clients"
+      const url = isEditing ? `/api/clients/${clientData?.id}` : "/api/clients"
       const method = isEditing ? "PUT" : "POST"
       
       const response = await fetch(url, {
@@ -83,7 +92,7 @@ export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
       })
 
       // Redirect to clients list or client details
-      router.push(isEditing ? `/dashboard/clients/${clientData.id}` : "/dashboard/clients")
+      router.push(isEditing ? `/dashboard/clients/${clientData?.id}` : "/dashboard/clients")
     } catch (error) {
       console.error(isEditing ? "Error updating client:" : "Error creating client:", error)
       toast({

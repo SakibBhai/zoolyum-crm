@@ -9,8 +9,19 @@ import { ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 
+interface Client {
+  id: string
+  name: string
+  email: string
+  phone: string
+  address?: string
+  status: string
+  billing_terms?: string
+  contract_details?: string
+}
+
 export default function EditClientPage({ params }: { params: { id: string } }) {
-  const [client, setClient] = useState(null)
+  const [client, setClient] = useState<Client | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const router = useRouter()
   const { toast } = useToast()
