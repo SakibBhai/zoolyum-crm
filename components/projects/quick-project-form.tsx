@@ -18,14 +18,7 @@ import { cn } from "@/lib/utils"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useProjectContext } from "@/contexts/project-context"
 
-// Mock data for team members
-const teamMembers = [
-  { id: "1", name: "Sarah Johnson" },
-  { id: "2", name: "Michael Chen" },
-  { id: "3", name: "Emily Rodriguez" },
-  { id: "4", name: "David Kim" },
-  { id: "5", name: "Jessica Lee" },
-]
+// TeamMember interface is already defined below
 
 const projectTypes = [
   { value: "social_media_management", label: "Social Media Management" },
@@ -115,22 +108,31 @@ export function QuickProjectForm({ onSuccess, onCancel, defaultClientId }: Quick
   })
 
   useEffect(() => {
-    async function fetchClients() {
+    async function fetchData() {
       try {
         setIsLoadingClients(true)
-        const response = await fetch("/api/clients")
+        const [clientsResponse, teamResponse] = await Promise.all([
+          fetch("/api/clients"),
+          fetch("/api/team")
+        ])
 
-        if (!response.ok) {
+        if (!clientsResponse.ok) {
           throw new Error("Failed to fetch clients")
         }
 
-        const data = await response.json()
-        setClients(Array.isArray(data) ? data : [])
+        const clientsData = await clientsResponse.json()
+        setClients(Array.isArray(clientsData) ? clientsData : [])
+
+        if (teamResponse.ok) {
+          const teamData = await teamResponse.json()
+          // Handle the response structure from the enhanced team API
+          setTeamMembers(teamData.teamMembers || teamData || [])
+        }
       } catch (error) {
-        console.error("Error fetching clients:", error)
+        console.error("Error fetching data:", error)
         toast({
           title: "Error",
-          description: "Failed to load clients. Please refresh the page.",
+          description: "Failed to load data. Please refresh the page.",
           variant: "destructive",
         })
       } finally {
@@ -138,7 +140,7 @@ export function QuickProjectForm({ onSuccess, onCancel, defaultClientId }: Quick
       }
     }
 
-    fetchClients()
+    fetchData()
   }, [toast])
 
   useEffect(() => {

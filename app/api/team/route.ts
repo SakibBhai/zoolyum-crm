@@ -1,10 +1,37 @@
 import { NextRequest, NextResponse } from "next/server"
 import { teamService } from "@/lib/neon-db"
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const teamMembers = await teamService.getAll()
-    return NextResponse.json(teamMembers)
+    const { searchParams } = new URL(request.url)
+    const role = searchParams.get('role')
+    const department = searchParams.get('department')
+    const active = searchParams.get('active')
+    
+    let teamMembers = await teamService.getAll()
+    
+    // Apply filters
+    if (role) {
+      teamMembers = teamMembers.filter(member => 
+        member.role?.toLowerCase().includes(role.toLowerCase())
+      )
+    }
+    
+    if (department) {
+      teamMembers = teamMembers.filter(member => 
+        member.department?.toLowerCase().includes(department.toLowerCase())
+      )
+    }
+    
+    if (active !== null) {
+      const isActive = active === 'true'
+      teamMembers = teamMembers.filter(member => member.active === isActive)
+    }
+    
+    return NextResponse.json({
+      teamMembers,
+      total: teamMembers.length
+    })
   } catch (error) {
     console.error("Error in GET /api/team:", error)
     return NextResponse.json({ error: "Failed to fetch team members" }, { status: 500 })

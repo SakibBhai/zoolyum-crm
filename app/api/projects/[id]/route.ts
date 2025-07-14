@@ -4,26 +4,83 @@ import { projectsService } from "@/lib/neon-db"
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
+    const { searchParams } = new URL(request.url)
+    const includeActivities = searchParams.get('includeActivities') === 'true'
+    const includeDocuments = searchParams.get('includeDocuments') === 'true'
+    
     const project = await projectsService.getById(id)
+    
     if (!project) {
-      return NextResponse.json({ error: "Project not found" }, { status: 404 })
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      )
     }
+    
+    // Include activities if requested
+    if (includeActivities) {
+      project.activities = await projectsService.getActivities(id, 50)
+    }
+    
+    // Include documents if requested
+    if (includeDocuments) {
+      try {
+        const documentsResponse = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/upload/project-documents?projectId=${id}`)
+        if (documentsResponse.ok) {
+          const documentsData = await documentsResponse.json()
+          project.documents = documentsData.files
+        }
+      } catch (error) {
+        console.error('Error fetching project documents:', error)
+        project.documents = []
+      }
+    }
+    
     return NextResponse.json(project)
   } catch (error) {
-    console.error("Error in GET /api/projects/[id]:", error)
-    return NextResponse.json({ error: "Failed to fetch project" }, { status: 500 })
+    console.error('Error fetching project:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch project' },
+      { status: 500 }
+    )
   }
 }
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params
-    const body = await request.json()
-    const updatedProject = await projectsService.update(id, body)
+    const updates = await request.json()
+    const updatedBy = updates.updated_by || 'system'
+    
+    // Add updated timestamp
+    const enrichedUpdates = {
+      ...updates,
+      updated_at: new Date().toISOString()
+    }
+    
+    const updatedProject = await projectsService.update(id, enrichedUpdates, updatedBy)
+    
+    if (!updatedProject) {
+      return NextResponse.json(
+        { error: 'Project not found' },
+        { status: 404 }
+      )
+    }
+    
+    // Log document uploads if any
+    if (updates.documents && updates.documents.length > 0) {
+      for (const doc of updates.documents) {
+        await projectsService.addDocument(id, doc, updatedBy)
+      }
+    }
+    
     return NextResponse.json(updatedProject)
   } catch (error) {
-    console.error("Error in PUT /api/projects/[id]:", error)
-    return NextResponse.json({ error: "Failed to update project" }, { status: 500 })
+    console.error('Error updating project:', error)
+    return NextResponse.json(
+      { error: 'Failed to update project' },
+      { status: 500 }
+    )
   }
 }
 

@@ -186,7 +186,8 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
         
         if (teamResponse.ok) {
           const teamData = await teamResponse.json()
-          setTeamMembers(teamData)
+          // Handle the response structure from the enhanced team API
+          setTeamMembers(teamData.teamMembers || teamData || [])
         }
       } catch (error) {
         console.error('Error fetching data:', error)

@@ -1,29 +1,86 @@
-import { type NextRequest, NextResponse } from "next/server"
-import { projectsService } from "@/lib/neon-db"
+import { NextRequest, NextResponse } from 'next/server'
+import { projectsService } from '@/lib/neon-db'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const projects = await projectsService.getAll()
+    const { searchParams } = new URL(request.url)
+    const includeActivities = searchParams.get('includeActivities') === 'true'
+    const status = searchParams.get('status')
+    const priority = searchParams.get('priority')
+    const type = searchParams.get('type')
+    const managerId = searchParams.get('managerId')
+    
+    let projects = await projectsService.getAll()
+    
+    // Apply filters
+    if (status) {
+      projects = projects.filter(p => p.status === status)
+    }
+    if (priority) {
+      projects = projects.filter(p => p.priority === priority)
+    }
+    if (type) {
+      projects = projects.filter(p => p.type === type)
+    }
+    if (managerId) {
+      projects = projects.filter(p => p.manager === managerId)
+    }
+    
+    // Include activities if requested
+    if (includeActivities) {
+      for (const project of projects) {
+        project.activities = await projectsService.getActivities(project.id, 10)
+      }
+    }
+    
     return NextResponse.json(projects)
   } catch (error) {
-    console.error("Error in GET /api/projects:", error)
-    return NextResponse.json({ error: "Failed to fetch projects" }, { status: 500 })
+    console.error('Error fetching projects:', error)
+    return NextResponse.json(
+      { error: 'Failed to fetch projects' },
+      { status: 500 }
+    )
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    console.log("Received project data:", body)
+    const projectData = await request.json()
     
-    const newProject = await projectsService.create(body)
+    // Validate required fields
+    if (!projectData.name || !projectData.type) {
+      return NextResponse.json(
+        { error: 'Project name and type are required' },
+        { status: 400 }
+      )
+    }
+    
+    // Set default values
+    const enrichedProjectData = {
+      ...projectData,
+      status: projectData.status || 'planning',
+      priority: projectData.priority || 'medium',
+      progress: projectData.progress || 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      created_by: projectData.created_by || 'system'
+    }
+    
+    const newProject = await projectsService.create(enrichedProjectData)
+    
+    // Log document uploads if any
+    if (projectData.documents && projectData.documents.length > 0) {
+      for (const doc of projectData.documents) {
+        await projectsService.addDocument(newProject.id, doc, projectData.created_by)
+      }
+    }
+    
     return NextResponse.json(newProject, { status: 201 })
   } catch (error) {
-    console.error("Error in POST /api/projects:", error)
-    return NextResponse.json({ 
-      error: "Failed to create project", 
-      message: error instanceof Error ? error.message : "Unknown error",
-      details: error
-    }, { status: 500 })
+    console.error('Error creating project:', error)
+    return NextResponse.json(
+      { error: 'Failed to create project' },
+      { status: 500 }
+    )
   }
 }

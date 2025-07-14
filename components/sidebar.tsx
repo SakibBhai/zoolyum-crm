@@ -16,6 +16,8 @@ import {
   X,
   CreditCard,
   UserCheck,
+  DollarSign,
+  Target,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
@@ -35,9 +37,15 @@ const routes = [
     color: "text-violet-500",
   },
   {
+    label: "Leads",
+    icon: Target,
+    href: "/dashboard/leads",
+    color: "text-indigo-500",
+  },
+  {
     label: "Projects",
     icon: FolderKanban,
-    href: "/dashboard/projects",
+    href: "/projects",
     color: "text-pink-700",
   },
   {
@@ -63,6 +71,12 @@ const routes = [
     icon: CreditCard,
     href: "/dashboard/invoices",
     color: "text-amber-500",
+  },
+  {
+    label: "Finance",
+    icon: DollarSign,
+    href: "/dashboard/finance",
+    color: "text-green-500",
   },
   {
     label: "Reports",

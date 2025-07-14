@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -24,14 +24,13 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 
-// Mock data for team members
-const teamMembers = [
-  { id: "1", name: "Sarah Johnson" },
-  { id: "2", name: "Michael Chen" },
-  { id: "3", name: "Emily Rodriguez" },
-  { id: "4", name: "David Kim" },
-  { id: "5", name: "Jessica Lee" },
-]
+interface TeamMember {
+  id: string
+  name: string
+  email: string
+  role?: string
+  department?: string
+}
 
 const projectTypes = [
   "Social Media Management",
@@ -76,7 +75,26 @@ interface AddProjectModalProps {
 export function AddProjectModal({ clientId, clientName, onProjectAdded }: AddProjectModalProps) {
   const [open, setOpen] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   const { toast } = useToast()
+
+  useEffect(() => {
+    fetchTeamMembers()
+  }, [])
+
+  const fetchTeamMembers = async () => {
+    try {
+      const response = await fetch('/api/team')
+      if (response.ok) {
+        const data = await response.json()
+        // Handle the response structure from the enhanced team API
+        setTeamMembers(data.teamMembers || data || [])
+      }
+    } catch (error) {
+      console.error('Error fetching team members:', error)
+      setTeamMembers([])
+    }
+  }
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),

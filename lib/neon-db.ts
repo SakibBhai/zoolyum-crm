@@ -155,25 +155,45 @@ export const projectsService = {
           description, 
           client_id, 
           status, 
+          priority,
           estimated_budget, 
           actual_budget, 
           performance_points, 
           start_date, 
-          end_date
+          end_date,
+          manager,
+          type,
+          team_members,
+          tags,
+          created_by,
+          recurrence_pattern
         )
         VALUES (
           ${project.name},
           ${project.description || ''},
           ${project.client_id},
           ${project.status || 'draft'},
+          ${project.priority || 'medium'},
           ${parseFloat(project.estimated_budget) || parseFloat(project.budget) || 0},
           ${parseFloat(project.actual_budget) || 0},
           ${parseInt(project.performance_points) || 0},
           ${project.start_date},
-          ${project.end_date || project.deadline}
+          ${project.end_date || project.deadline},
+          ${project.manager},
+          ${project.type},
+          ${JSON.stringify(project.team_members || [])},
+          ${JSON.stringify(project.tags || [])},
+          ${project.created_by},
+          ${project.recurrence_pattern ? JSON.stringify(project.recurrence_pattern) : null}
         )
         RETURNING *
       `
+      
+      // Log project creation activity
+      if (newProject) {
+        await this.logActivity(newProject.id, 'created', `Project "${project.name}" was created`, project.created_by);
+      }
+      
       return newProject
     } catch (error) {
       console.error("Error creating project:", error)
@@ -181,8 +201,10 @@ export const projectsService = {
     }
   },
 
-  async update(id: string, updates: any) {
+  async update(id: string, updates: any, updatedBy?: string) {
     try {
+      const oldProject = await this.getById(id);
+      
       const [updatedProject] = await sql`
         UPDATE projects 
         SET 
@@ -190,15 +212,31 @@ export const projectsService = {
           description = ${updates.description},
           client_id = ${updates.client_id},
           status = ${updates.status},
+          priority = ${updates.priority},
           estimated_budget = ${updates.estimated_budget || updates.budget || 0},
           actual_budget = ${updates.actual_budget || 0},
           performance_points = ${updates.performance_points || 0},
           start_date = ${updates.start_date},
           end_date = ${updates.end_date || updates.deadline},
+          manager = ${updates.manager},
+          type = ${updates.type},
+          progress = ${updates.progress},
+          team_members = ${JSON.stringify(updates.team_members || [])},
+          tags = ${JSON.stringify(updates.tags || [])},
+          recurrence_pattern = ${updates.recurrence_pattern ? JSON.stringify(updates.recurrence_pattern) : null},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `
+      
+      // Log status change activity
+      if (oldProject && oldProject.status !== updates.status) {
+        await this.logActivity(id, 'status_changed', `Project status changed from "${oldProject.status}" to "${updates.status}"`, updatedBy);
+      }
+      
+      // Log general update activity
+      await this.logActivity(id, 'updated', `Project "${updates.name}" was updated`, updatedBy);
+      
       return updatedProject
     } catch (error) {
       console.error("Error updating project:", error)
@@ -256,6 +294,94 @@ export const projectsService = {
       return newVersion
     } catch (error) {
       console.error("Error creating project version history:", error)
+      throw error
+    }
+  },
+
+  async logActivity(projectId: string, type: string, description: string, userId?: string, userName?: string) {
+    try {
+      const [newActivity] = await sql`
+        INSERT INTO project_activities (
+          project_id, type, description, user_id, user_name, timestamp
+        )
+        VALUES (
+          ${projectId}, ${type}, ${description}, ${userId}, ${userName}, NOW()
+        )
+        RETURNING *
+      `
+      return newActivity
+    } catch (error) {
+      console.error("Error logging project activity:", error)
+      throw error
+    }
+  },
+
+  async getActivities(projectId: string, limit: number = 50) {
+    try {
+      const activities = await sql`
+        SELECT * FROM project_activities 
+        WHERE project_id = ${projectId}
+        ORDER BY timestamp DESC
+        LIMIT ${limit}
+      `
+      return activities
+    } catch (error) {
+      console.error("Error fetching project activities:", error)
+      return []
+    }
+  },
+
+  async addTeamMember(projectId: string, teamMemberId: string, addedBy?: string) {
+    try {
+      const project = await this.getById(projectId);
+      const teamMembers = project.team_members || [];
+      
+      if (!teamMembers.find((member: any) => member.id === teamMemberId)) {
+        const teamMember = await teamService.getById(teamMemberId);
+        teamMembers.push(teamMember);
+        
+        await sql`
+          UPDATE projects 
+          SET team_members = ${JSON.stringify(teamMembers)}, updated_at = NOW()
+          WHERE id = ${projectId}
+        `;
+        
+        await this.logActivity(projectId, 'team_member_added', `${teamMember.name} was added to the project`, addedBy);
+      }
+    } catch (error) {
+      console.error("Error adding team member to project:", error)
+      throw error
+    }
+  },
+
+  async removeTeamMember(projectId: string, teamMemberId: string, removedBy?: string) {
+    try {
+      const project = await this.getById(projectId);
+      const teamMembers = project.team_members || [];
+      const memberToRemove = teamMembers.find((member: any) => member.id === teamMemberId);
+      
+      if (memberToRemove) {
+        const updatedTeamMembers = teamMembers.filter((member: any) => member.id !== teamMemberId);
+        
+        await sql`
+          UPDATE projects 
+          SET team_members = ${JSON.stringify(updatedTeamMembers)}, updated_at = NOW()
+          WHERE id = ${projectId}
+        `;
+        
+        await this.logActivity(projectId, 'team_member_removed', `${memberToRemove.name} was removed from the project`, removedBy);
+      }
+    } catch (error) {
+      console.error("Error removing team member from project:", error)
+      throw error
+    }
+  },
+
+  async addDocument(projectId: string, documentData: any, uploadedBy?: string) {
+    try {
+      await this.logActivity(projectId, 'document_uploaded', `Document "${documentData.originalName}" was uploaded`, uploadedBy);
+    } catch (error) {
+      console.error("Error logging document upload:", error)
       throw error
     }
   },

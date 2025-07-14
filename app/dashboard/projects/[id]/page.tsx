@@ -2,6 +2,8 @@ import { ProjectDetails } from "@/components/projects/project-details"
 import { ProjectTasks } from "@/components/projects/project-tasks"
 import { ProjectMetrics } from "@/components/projects/project-metrics"
 import { ContentCalendar } from "@/components/projects/content-calendar"
+import { RecurringTasks } from "@/components/projects/recurring-tasks"
+import { BudgetManagement } from "@/components/projects/budget-management"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -43,9 +45,11 @@ export default async function ProjectPage({
       <ProjectMetrics projectId={id} />
 
       <Tabs defaultValue={defaultTab}>
-        <TabsList>
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="details">Details</TabsTrigger>
           <TabsTrigger value="tasks">Tasks</TabsTrigger>
+          <TabsTrigger value="recurring">Recurring</TabsTrigger>
+          <TabsTrigger value="budget">Budget</TabsTrigger>
           <TabsTrigger value="calendar">Content Calendar</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
@@ -54,6 +58,12 @@ export default async function ProjectPage({
         </TabsContent>
         <TabsContent value="tasks" className="mt-4">
           <ProjectTasks projectId={id} />
+        </TabsContent>
+        <TabsContent value="recurring" className="mt-4">
+          <RecurringTasks projectId={id} />
+        </TabsContent>
+        <TabsContent value="budget" className="mt-4">
+          <BudgetManagement projectId={id} />
         </TabsContent>
         <TabsContent value="calendar" className="mt-4">
           <ContentCalendar projectId={id} />
