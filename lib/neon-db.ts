@@ -130,14 +130,17 @@ export const projectsService = {
       // Transform the data to match the expected Project type
       return projects.map(project => ({
         ...project,
+        id: project.id,
         client: project.client_name || 'Unknown Client',
         clientId: project.client_id,
         startDate: project.start_date,
         deadline: project.end_date,
-        manager: 'Unknown Manager', // Default since we don't have this in the database
+        manager: project.manager || 'Unknown Manager',
         managerId: project.created_by || '',
-        type: 'General', // Default since we don't have this in the database
-        progress: 0, // Default since we don't have this in the database
+        type: project.type || 'General',
+        progress: project.progress || 0,
+        status: project.status || 'draft',
+        priority: project.priority || 'medium'
       }))
     } catch (error) {
       console.error("Error fetching projects:", error)
@@ -401,6 +404,9 @@ export const teamService = {
       // Transform database response to match TypeScript interface
       return teamMembers.map(member => ({
         ...member,
+        role: member.role,
+        department: member.department,
+        active: member.is_active,
         skills: typeof member.skills === 'string' ? JSON.parse(member.skills) : (member.skills || []),
         emergencyContact: member.emergency_contact_name ? {
           name: member.emergency_contact_name,

@@ -3,7 +3,7 @@ import { projectsService } from '@/lib/neon-db'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
@@ -16,22 +16,14 @@ export async function POST(
       )
     }
     
-    const result = await projectsService.addTeamMember(
+    await projectsService.addTeamMember(
       id,
       teamMemberId,
-      role || 'member',
       addedBy || 'system'
     )
     
-    if (!result) {
-      return NextResponse.json(
-        { error: 'Failed to add team member to project' },
-        { status: 400 }
-      )
-    }
-    
     return NextResponse.json(
-      { message: 'Team member added successfully', result },
+      { message: 'Team member added successfully' },
       { status: 201 }
     )
   } catch (error) {
@@ -45,7 +37,7 @@ export async function POST(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params
@@ -60,18 +52,11 @@ export async function DELETE(
       )
     }
     
-    const result = await projectsService.removeTeamMember(
+    await projectsService.removeTeamMember(
       id,
       teamMemberId,
       removedBy
     )
-    
-    if (!result) {
-      return NextResponse.json(
-        { error: 'Failed to remove team member from project' },
-        { status: 400 }
-      )
-    }
     
     return NextResponse.json(
       { message: 'Team member removed successfully' }

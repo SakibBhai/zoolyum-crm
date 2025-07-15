@@ -10,10 +10,10 @@ const sql = neon(process.env.DATABASE_URL)
 // GET /api/projects/[id]/budget/expenses
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id
+    const { id: projectId } = await params
     const { searchParams } = new URL(request.url)
     const categoryId = searchParams.get('categoryId')
     const limit = parseInt(searchParams.get('limit') || '50')
@@ -99,10 +99,10 @@ export async function GET(
 // POST /api/projects/[id]/budget/expenses
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id
+    const { id: projectId } = await params
     const body = await request.json()
     const { 
       description, 

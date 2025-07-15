@@ -10,10 +10,10 @@ const sql = neon(process.env.DATABASE_URL)
 // GET /api/projects/[id]/tasks/[taskId]
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const { id: projectId, taskId } = params
+    const { id: projectId, taskId } = await params
     
     const task = await sql`
       SELECT 
@@ -58,10 +58,10 @@ export async function GET(
 // PUT /api/projects/[id]/tasks/[taskId]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const { id: projectId, taskId } = params
+    const { id: projectId, taskId } = await params
     const body = await request.json()
     const { 
       title, 
@@ -188,14 +188,25 @@ export async function PUT(
     // Update the task
     updates.updated_at = new Date().toISOString()
     
-    const updateFields = Object.keys(updates).map((key, index) => `${key} = $${index + 1}`).join(', ')
-    const updateValues = Object.values(updates)
+    // Build update query dynamically
+    const updateEntries = Object.entries(updates)
+    let query = 'UPDATE generated_tasks SET '
+    const setParts = []
     
-    await sql`
-      UPDATE generated_tasks
-      SET ${sql.unsafe(updateFields)}
-      WHERE id = ${taskId} AND project_id = ${projectId}
-    `.apply(null, [...updateValues])
+    for (const [key, value] of updateEntries) {
+      if (value === null) {
+        setParts.push(`${key} = NULL`)
+      } else if (typeof value === 'string') {
+        setParts.push(`${key} = '${value.replace(/'/g, "''")}'`)
+      } else {
+        setParts.push(`${key} = '${value}'`)
+      }
+    }
+    
+    query += setParts.join(', ')
+    query += ` WHERE id = '${taskId}' AND project_id = '${projectId}'`
+    
+    await sql.unsafe(query)
 
     return NextResponse.json({ message: 'Task updated successfully' })
   } catch (error) {
@@ -210,10 +221,10 @@ export async function PUT(
 // DELETE /api/projects/[id]/tasks/[taskId]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const { id: projectId, taskId } = params
+    const { id: projectId, taskId } = await params
 
     // Check if task exists
     const task = await sql`
@@ -247,10 +258,10 @@ export async function DELETE(
 // PATCH /api/projects/[id]/tasks/[taskId] - Quick status update
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const { id: projectId, taskId } = params
+    const { id: projectId, taskId } = await params
     const body = await request.json()
     const { status } = body
 

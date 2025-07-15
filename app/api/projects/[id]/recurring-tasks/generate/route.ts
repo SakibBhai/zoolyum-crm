@@ -10,10 +10,10 @@ const sql = neon(process.env.DATABASE_URL)
 // POST /api/projects/[id]/recurring-tasks/generate
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id
+    const { id: projectId } = await params
     const now = new Date()
     
     // Get all active recurring tasks that are due for generation
@@ -183,10 +183,10 @@ function calculateNextDue(task: any): Date {
 // GET /api/projects/[id]/recurring-tasks/generate - Get generation status
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const projectId = params.id
+    const { id: projectId } = await params
     const now = new Date()
     
     // Get count of recurring tasks ready for generation

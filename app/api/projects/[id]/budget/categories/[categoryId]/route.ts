@@ -10,10 +10,10 @@ const sql = neon(process.env.DATABASE_URL)
 // GET /api/projects/[id]/budget/categories/[categoryId]
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; categoryId: string } }
+  { params }: { params: Promise<{ id: string; categoryId: string }> }
 ) {
   try {
-    const { id: projectId, categoryId } = params
+    const { id: projectId, categoryId } = await params
     
     const category = await sql`
       SELECT 
@@ -72,10 +72,10 @@ export async function GET(
 // PUT /api/projects/[id]/budget/categories/[categoryId]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; categoryId: string } }
+  { params }: { params: Promise<{ id: string; categoryId: string }> }
 ) {
   try {
-    const { id: projectId, categoryId } = params
+    const { id: projectId, categoryId } = await params
     const body = await request.json()
     const { name, allocatedAmount, alertThreshold, color, description } = body
 
@@ -200,10 +200,10 @@ export async function PUT(
 // DELETE /api/projects/[id]/budget/categories/[categoryId]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; categoryId: string } }
+  { params }: { params: Promise<{ id: string; categoryId: string }> }
 ) {
   try {
-    const { id: projectId, categoryId } = params
+    const { id: projectId, categoryId } = await params
 
     // Get category info before deletion
     const category = await sql`

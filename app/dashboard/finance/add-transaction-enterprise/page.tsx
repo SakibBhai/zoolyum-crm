@@ -68,8 +68,8 @@ export default function AddTransactionEnterprisePage() {
         </Link>
         <div className="flex-1">
           <PageHeader
-            title="Add New Transaction"
-            description="Create comprehensive financial transactions with enterprise-grade features and advanced capabilities."
+            heading="Add New Transaction"
+            subheading="Create comprehensive financial transactions with enterprise-grade features and advanced capabilities."
           />
         </div>
       </div>

@@ -10,10 +10,10 @@ const sql = neon(process.env.DATABASE_URL)
 // GET /api/projects/[id]/budget/expenses/[expenseId]
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; expenseId: string } }
+  { params }: { params: Promise<{ id: string; expenseId: string }> }
 ) {
   try {
-    const { id: projectId, expenseId } = params
+    const { id: projectId, expenseId } = await params
     
     const expense = await sql`
       SELECT 
@@ -53,10 +53,10 @@ export async function GET(
 // PUT /api/projects/[id]/budget/expenses/[expenseId]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; expenseId: string } }
+  { params }: { params: Promise<{ id: string; expenseId: string }> }
 ) {
   try {
-    const { id: projectId, expenseId } = params
+    const { id: projectId, expenseId } = await params
     const body = await request.json()
     const { description, amount, categoryId, expenseDate, receiptUrl, notes } = body
 
@@ -172,14 +172,19 @@ export async function PUT(
     // Update the expense
     updates.updated_at = new Date().toISOString()
     
-    const updateFields = Object.keys(updates).map(key => `${key} = $${key}`).join(', ')
-    const updateValues = Object.values(updates)
+    // Build update query dynamically
+    const updateEntries = Object.entries(updates)
+    let query = 'UPDATE budget_expenses SET '
+    const setParts = []
     
-    await sql`
-      UPDATE budget_expenses
-      SET ${sql.unsafe(updateFields)}
-      WHERE id = ${expenseId} AND project_id = ${projectId}
-    `.apply(null, updateValues)
+    for (const [key, value] of updateEntries) {
+      setParts.push(`${key} = '${value}'`)
+    }
+    
+    query += setParts.join(', ')
+    query += ` WHERE id = '${expenseId}' AND project_id = '${projectId}'`
+    
+    await sql.unsafe(query)
 
     // Log significant changes
     if (changes.length > 0) {
@@ -215,10 +220,10 @@ export async function PUT(
 // DELETE /api/projects/[id]/budget/expenses/[expenseId]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; expenseId: string } }
+  { params }: { params: Promise<{ id: string; expenseId: string }> }
 ) {
   try {
-    const { id: projectId, expenseId } = params
+    const { id: projectId, expenseId } = await params
 
     // Get expense info before deletion
     const expense = await sql`

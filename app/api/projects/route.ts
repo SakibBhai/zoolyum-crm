@@ -28,8 +28,9 @@ export async function GET(request: NextRequest) {
     
     // Include activities if requested
     if (includeActivities) {
-      for (const project of projects) {
-        project.activities = await projectsService.getActivities(project.id, 10)
+      for (let i = 0; i < projects.length; i++) {
+        const activities = await projectsService.getActivities(projects[i].id, 10)
+        projects[i] = { ...projects[i], activities } as any
       }
     }
     

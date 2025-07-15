@@ -10,10 +10,10 @@ const sql = neon(process.env.DATABASE_URL)
 // GET /api/projects/[id]/recurring-tasks/[taskId]
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const { id: projectId, taskId } = params
+    const { id: projectId, taskId } = await params
 
     const result = await sql`
       SELECT 
@@ -60,10 +60,10 @@ export async function GET(
 // PUT /api/projects/[id]/recurring-tasks/[taskId]
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const { id: projectId, taskId } = params
+    const { id: projectId, taskId } = await params
     const body = await request.json()
 
     // Check if task exists
@@ -81,17 +81,13 @@ export async function PUT(
 
     // Handle partial updates
     const updateFields = []
-    const updateValues = []
-    let paramIndex = 1
 
     if (body.title !== undefined) {
-      updateFields.push(`title = $${paramIndex++}`)
-      updateValues.push(body.title)
+      updateFields.push(`title = '${body.title.replace(/'/g, "''")}'`)
     }
 
     if (body.description !== undefined) {
-      updateFields.push(`description = $${paramIndex++}`)
-      updateValues.push(body.description)
+      updateFields.push(`description = '${body.description ? body.description.replace(/'/g, "''") : ''}'`)
     }
 
     if (body.frequency !== undefined) {
@@ -101,43 +97,35 @@ export async function PUT(
           { status: 400 }
         )
       }
-      updateFields.push(`frequency = $${paramIndex++}`)
-      updateValues.push(body.frequency)
+      updateFields.push(`frequency = '${body.frequency}'`)
     }
 
     if (body.interval !== undefined) {
-      updateFields.push(`interval_value = $${paramIndex++}`)
-      updateValues.push(body.interval)
+      updateFields.push(`interval_value = ${body.interval}`)
     }
 
     if (body.daysOfWeek !== undefined) {
-      updateFields.push(`days_of_week = $${paramIndex++}`)
-      updateValues.push(body.daysOfWeek)
+      updateFields.push(`days_of_week = '${JSON.stringify(body.daysOfWeek)}'`)
     }
 
     if (body.dayOfMonth !== undefined) {
-      updateFields.push(`day_of_month = $${paramIndex++}`)
-      updateValues.push(body.dayOfMonth)
+      updateFields.push(`day_of_month = ${body.dayOfMonth}`)
     }
 
     if (body.startDate !== undefined) {
-      updateFields.push(`start_date = $${paramIndex++}`)
-      updateValues.push(body.startDate)
+      updateFields.push(`start_date = '${body.startDate}'`)
     }
 
     if (body.endDate !== undefined) {
-      updateFields.push(`end_date = $${paramIndex++}`)
-      updateValues.push(body.endDate)
+      updateFields.push(`end_date = ${body.endDate ? `'${body.endDate}'` : 'NULL'}`)
     }
 
     if (body.isActive !== undefined) {
-      updateFields.push(`is_active = $${paramIndex++}`)
-      updateValues.push(body.isActive)
+      updateFields.push(`is_active = ${body.isActive}`)
     }
 
     if (body.assignedTo !== undefined) {
-      updateFields.push(`assigned_to = $${paramIndex++}`)
-      updateValues.push(body.assignedTo)
+      updateFields.push(`assigned_to = ${body.assignedTo ? `'${body.assignedTo}'` : 'NULL'}`)
     }
 
     if (body.priority !== undefined) {
@@ -147,23 +135,19 @@ export async function PUT(
           { status: 400 }
         )
       }
-      updateFields.push(`priority = $${paramIndex++}`)
-      updateValues.push(body.priority)
+      updateFields.push(`priority = '${body.priority}'`)
     }
 
     if (body.estimatedHours !== undefined) {
-      updateFields.push(`estimated_hours = $${paramIndex++}`)
-      updateValues.push(body.estimatedHours)
+      updateFields.push(`estimated_hours = ${body.estimatedHours}`)
     }
 
     if (body.tags !== undefined) {
-      updateFields.push(`tags = $${paramIndex++}`)
-      updateValues.push(body.tags)
+      updateFields.push(`tags = '${JSON.stringify(body.tags)}'`)
     }
 
     if (body.nextDue !== undefined) {
-      updateFields.push(`next_due = $${paramIndex++}`)
-      updateValues.push(body.nextDue)
+      updateFields.push(`next_due = '${body.nextDue}'`)
     }
 
     if (updateFields.length === 0) {
@@ -180,15 +164,19 @@ export async function PUT(
     const query = `
       UPDATE recurring_tasks 
       SET ${updateFields.join(', ')}
-      WHERE id = $${paramIndex++} AND project_id = $${paramIndex}
+      WHERE id = '${taskId}' AND project_id = '${projectId}'
       RETURNING *
     `
-    
-    updateValues.push(taskId, projectId)
 
-    const result = await sql.unsafe(query, updateValues)
+    await sql.unsafe(query)
 
-    if (!result || result.rowCount === 0) {
+    // Fetch the updated task
+    const result = await sql`
+      SELECT * FROM recurring_tasks 
+      WHERE id = ${taskId} AND project_id = ${projectId}
+    `
+
+    if (result.length === 0) {
       return NextResponse.json(
         { error: 'Failed to update recurring task' },
         { status: 500 }
@@ -225,10 +213,10 @@ export async function PUT(
 // DELETE /api/projects/[id]/recurring-tasks/[taskId]
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string; taskId: string } }
+  { params }: { params: Promise<{ id: string; taskId: string }> }
 ) {
   try {
-    const { id: projectId, taskId } = params
+    const { id: projectId, taskId } = await params
 
     // Check if task exists
     const existingTask = await sql`
