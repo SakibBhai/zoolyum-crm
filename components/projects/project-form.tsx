@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
-import { CalendarIcon } from "lucide-react"
+import { CalendarIcon, Plus } from "lucide-react"
 import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { useState, useEffect } from "react"
@@ -22,27 +23,37 @@ const formSchema = z.object({
   name: z.string().min(2, {
     message: "Project name must be at least 2 characters.",
   }),
-  clientId: z.string({
-    required_error: "Please select a client.",
+  clientId: z.string().min(1, {
+    message: "Please select a client.",
   }),
-  startDate: z.date({
-    required_error: "Please select a start date.",
-  }),
-  deadline: z.date({
-    required_error: "Please select a deadline.",
-  }),
-  status: z.string(),
+  startDate: z.date().optional(),
+  deadline: z.date().optional(),
+  status: z.enum(["draft", "active", "on_hold", "completed"]).default("draft"),
+  estimatedBudget: z.number().min(0).default(0),
   description: z.string().optional(),
-  estimatedBudget: z.number().min(0, {
-    message: "Budget must be a positive number.",
-  }).optional(),
-});
+})
+
+const clientSchema = z.object({
+  name: z.string().min(2, {
+    message: "Client name must be at least 2 characters.",
+  }),
+  industry: z.string().optional(),
+  contact_name: z.string().optional(),
+  email: z.string().email({
+    message: "Please enter a valid email address.",
+  }).optional().or(z.literal("")),
+  phone: z.string().optional(),
+  status: z.enum(["active", "inactive", "prospect"]).default("prospect"),
+  notes: z.string().optional(),
+})
 
 export function ProjectForm() {
   const { toast } = useToast()
   const router = useRouter()
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [isClientDialogOpen, setIsClientDialogOpen] = useState(false)
+  const [isCreatingClient, setIsCreatingClient] = useState(false)
 
   const form = useForm<z.infer<typeof formSchema>>({    
     resolver: zodResolver(formSchema),
@@ -54,6 +65,13 @@ export function ProjectForm() {
       status: "draft",
       description: "",
       estimatedBudget: 0,
+    },
+  })
+
+  const clientForm = useForm<z.infer<typeof clientSchema>>({
+    resolver: zodResolver(clientSchema),
+    defaultValues: {
+      status: "prospect",
     },
   })
 
@@ -80,6 +98,57 @@ export function ProjectForm() {
 
     fetchClients()
   }, [])
+
+  async function onCreateClient(values: z.infer<typeof clientSchema>) {
+    setIsCreatingClient(true)
+    try {
+      const response = await fetch("/api/clients", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: values.name,
+          industry: values.industry || "",
+          contact_name: values.contact_name || "",
+          email: values.email || "",
+          phone: values.phone || "",
+          status: values.status,
+          notes: values.notes || "",
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error("Failed to create client")
+      }
+
+      const newClient = await response.json()
+      
+      // Update clients list
+      setClients(prev => [...prev, newClient])
+      
+      // Select the new client in the project form
+      form.setValue("clientId", newClient.id)
+      
+      // Reset client form and close dialog
+      clientForm.reset()
+      setIsClientDialogOpen(false)
+      
+      toast({
+        title: "Client created",
+        description: `${values.name} has been added to your clients and selected for this project.`,
+      })
+    } catch (error) {
+      console.error("Error creating client:", error)
+      toast({
+        title: "Error",
+        description: "There was a problem creating the client. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreatingClient(false)
+    }
+  }
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
@@ -150,26 +219,159 @@ export function ProjectForm() {
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Client</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder={isLoading ? "Loading clients..." : "Select a client"} />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {clients && clients.length > 0 ? (
-                          clients.map((client) => (
-                            <SelectItem key={client.id} value={client.id}>
-                              {client.name}
+                    <div className="flex gap-2">
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger className="flex-1">
+                            <SelectValue placeholder={isLoading ? "Loading clients..." : "Select a client"} />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {clients && clients.length > 0 ? (
+                            clients.map((client) => (
+                              <SelectItem key={client.id} value={client.id}>
+                                {client.name}
+                              </SelectItem>
+                            ))
+                          ) : (
+                            <SelectItem value="no-clients" disabled>
+                              {isLoading ? "Loading clients..." : "No clients available"}
                             </SelectItem>
-                          ))
-                        ) : (
-                          <SelectItem value="no-clients" disabled>
-                            {isLoading ? "Loading clients..." : "No clients available"}
-                          </SelectItem>
-                        )}
-                      </SelectContent>
-                    </Select>
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Dialog open={isClientDialogOpen} onOpenChange={setIsClientDialogOpen}>
+                        <DialogTrigger asChild>
+                          <Button type="button" variant="outline" size="icon">
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                          <DialogHeader>
+                            <DialogTitle>Create New Client</DialogTitle>
+                            <DialogDescription>
+                              Add a new client to your database. They will be automatically selected for this project.
+                            </DialogDescription>
+                          </DialogHeader>
+                          <Form {...clientForm}>
+                            <form onSubmit={clientForm.handleSubmit(onCreateClient)} className="space-y-4">
+                              <FormField
+                                control={clientForm.control}
+                                name="name"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Client Name *</FormLabel>
+                                    <FormControl>
+                                      <Input placeholder="ABC Company" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                  control={clientForm.control}
+                                  name="industry"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Industry</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="Technology" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={clientForm.control}
+                                  name="contact_name"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Contact Name</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="John Doe" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                  control={clientForm.control}
+                                  name="email"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Email</FormLabel>
+                                      <FormControl>
+                                        <Input type="email" placeholder="john@abc.com" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={clientForm.control}
+                                  name="phone"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Phone</FormLabel>
+                                      <FormControl>
+                                        <Input placeholder="+1 (555) 123-4567" {...field} />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                              <FormField
+                                control={clientForm.control}
+                                name="status"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Status</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                      <FormControl>
+                                        <SelectTrigger>
+                                          <SelectValue placeholder="Select client status" />
+                                        </SelectTrigger>
+                                      </FormControl>
+                                      <SelectContent>
+                                        <SelectItem value="active">Active</SelectItem>
+                                        <SelectItem value="inactive">Inactive</SelectItem>
+                                        <SelectItem value="prospect">Prospect</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <FormField
+                                control={clientForm.control}
+                                name="notes"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Notes</FormLabel>
+                                    <FormControl>
+                                      <Textarea placeholder="Additional notes about the client..." {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                              <DialogFooter>
+                                <Button type="button" variant="outline" onClick={() => setIsClientDialogOpen(false)}>
+                                  Cancel
+                                </Button>
+                                <Button type="submit" disabled={isCreatingClient}>
+                                  {isCreatingClient ? "Creating..." : "Create Client"}
+                                </Button>
+                              </DialogFooter>
+                            </form>
+                          </Form>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
                     <FormMessage />
                   </FormItem>
                 )}

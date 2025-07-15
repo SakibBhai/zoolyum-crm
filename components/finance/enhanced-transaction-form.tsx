@@ -205,7 +205,7 @@ export function EnhancedTransactionForm({
   const [showAdvanced, setShowAdvanced] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   
-  const form = useForm<EnhancedTransactionFormValues>({
+  const form = useForm({
     resolver: zodResolver(enhancedTransactionSchema),
     defaultValues: {
       type: transaction?.type || undefined,
@@ -330,15 +330,19 @@ export function EnhancedTransactionForm({
   }, [watchedType, selectedType, form])
 
   useEffect(() => {
-    setSelectedCategory(watchedCategory)
+    if (watchedCategory) {
+      setSelectedCategory(watchedCategory)
+    }
   }, [watchedCategory])
 
   useEffect(() => {
-    setSelectedCurrency(watchedCurrency)
+    if (watchedCurrency) {
+      setSelectedCurrency(watchedCurrency)
+    }
   }, [watchedCurrency])
 
-  const availableCategories = selectedType ? enhancedCategories[selectedType] : {}
-  const availableSubTypes = selectedCategory ? enhancedCategories[selectedType]?.[selectedCategory] || [] : []
+  const availableCategories = (selectedType === 'income' || selectedType === 'expense') ? enhancedCategories[selectedType] : {}
+  const availableSubTypes = selectedCategory && (selectedType === 'income' || selectedType === 'expense') ? enhancedCategories[selectedType]?.[selectedCategory as keyof typeof enhancedCategories[typeof selectedType]] || [] : []
   const selectedCurrencyInfo = currencies.find(c => c.code === selectedCurrency)
 
   const applyTemplate = (template: string) => {
@@ -548,13 +552,13 @@ export function EnhancedTransactionForm({
                           className="min-h-[80px]"
                         />
                       </FormControl>
-                      {selectedType && selectedCategory && descriptionTemplates[selectedType]?.[selectedCategory] && (
+                      {selectedType && selectedCategory && (selectedType === 'income' || selectedType === 'expense') && descriptionTemplates[selectedType]?.[selectedCategory as keyof typeof descriptionTemplates[typeof selectedType]] && (
                         <FormDescription>
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={() => applyTemplate(descriptionTemplates[selectedType][selectedCategory])}
+                            onClick={() => applyTemplate(descriptionTemplates[selectedType as 'income' | 'expense'][selectedCategory as keyof typeof descriptionTemplates[typeof selectedType]])}
                           >
                             📝 Use Template
                           </Button>

@@ -11,8 +11,8 @@ export default function LeadsPage() {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <PageHeader
-        title="Leads Management"
-        description="Track, manage, and convert your sales leads efficiently"
+        heading="Leads Management"
+        subheading="Track, manage, and convert your sales leads efficiently"
       />
       <LeadsOverview />
     </div>

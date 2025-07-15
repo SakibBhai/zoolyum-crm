@@ -307,7 +307,7 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
               <div className="space-y-2">
                 <Label>Start Date</Label>
                 <DatePicker
-                  selected={new Date(formData.startDate)}
+                  selected={formData.startDate ? new Date(formData.startDate) : defaultStartDate}
                   onSelect={(date) => date && setFormData({ ...formData, startDate: format(date, "yyyy-MM-dd") })}
                 />
                 <p className="text-sm text-muted-foreground">First invoice will be generated on this date</p>

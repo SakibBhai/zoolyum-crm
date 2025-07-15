@@ -81,9 +81,9 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
   // Get clients from projects (in a real app, you'd have a separate clients context)
   const clients = useMemo(() => {
     return projects
-      .filter((project) => project.clientId && project.client) // Filter out projects without client info
+      .filter((project) => project.client_id && project.client) // Filter out projects without client info
       .map((project) => ({
-        id: project.clientId,
+        id: project.client_id,
         name: project.client,
       }))
       .filter((client, index, self) => 
@@ -203,7 +203,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
 
   // Filter projects by selected client
   const clientProjects = useMemo(() => {
-    return projects.filter((project) => project.clientId === formValues.clientId)
+    return projects.filter((project) => project.client_id === formValues.clientId)
   }, [projects, formValues.clientId])
 
   // Filter tasks by selected project

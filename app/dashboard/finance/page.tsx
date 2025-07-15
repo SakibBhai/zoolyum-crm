@@ -11,8 +11,8 @@ export default function FinancePage() {
   return (
     <div className="flex-1 space-y-4 p-4 md:p-8 pt-6">
       <PageHeader
-        title="Finance Management"
-        description="Track your income, expenses, and financial performance with detailed analytics and reporting."
+        heading="Finance Management"
+        subheading="Track your income, expenses, and financial performance with detailed analytics and reporting."
       />
       <EnhancedFinanceOverview />
     </div>

@@ -16,33 +16,33 @@ const formSchema = z.object({
   name: z.string().min(2, {
     message: "Client name must be at least 2 characters.",
   }),
+  industry: z.string().optional(),
+  contact_name: z.string().optional(),
   email: z.string().email({
     message: "Please enter a valid email address.",
-  }),
-  phone: z.string().min(10, {
-    message: "Phone number must be at least 10 characters.",
-  }),
-  address: z.string().optional(),
-  status: z.string(),
-  billingTerms: z.string().optional(),
-  contractDetails: z.string().optional(),
+  }).optional().or(z.literal("")),
+  phone: z.string().optional(),
+  status: z.enum(["active", "inactive", "prospect"]).default("prospect"),
+  notes: z.string().optional(),
 })
 
 interface ClientFormProps {
   clientData?: {
     id?: string
     name: string
+    industry?: string
+    contact_name?: string
     email: string
     phone: string
-    address?: string
     status: string
-    billing_terms?: string
-    contract_details?: string
+    notes?: string
   }
   isEditing?: boolean
+  onSuccess?: () => void
+  onCancel?: () => void
 }
 
-export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
+export function ClientForm({ clientData, isEditing = false, onSuccess, onCancel }: ClientFormProps) {
   const { toast } = useToast()
   const router = useRouter()
 
@@ -50,12 +50,12 @@ export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: clientData?.name || "",
+      industry: clientData?.industry || "",
+      contact_name: clientData?.contact_name || "",
       email: clientData?.email || "",
       phone: clientData?.phone || "",
-      address: clientData?.address || "",
-      status: clientData?.status || "active",
-      billingTerms: clientData?.billing_terms || "",
-      contractDetails: clientData?.contract_details || "",
+      status: clientData?.status || "prospect",
+      notes: clientData?.notes || "",
     },
   })
 
@@ -71,12 +71,12 @@ export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
         },
         body: JSON.stringify({
           name: values.name,
-          email: values.email,
-          phone: values.phone,
-          address: values.address || "",
+          industry: values.industry || "",
+          contact_name: values.contact_name || "",
+          email: values.email || "",
+          phone: values.phone || "",
           status: values.status,
-          billing_terms: values.billingTerms || "",
-          contract_details: values.contractDetails || "",
+          notes: values.notes || "",
         }),
       })
 
@@ -91,8 +91,12 @@ export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
           : `${values.name} has been added to your clients.`,
       })
 
-      // Redirect to clients list or client details
-      router.push(isEditing ? `/dashboard/clients/${clientData?.id}` : "/dashboard/clients")
+      // Call success callback or redirect
+      if (onSuccess) {
+        onSuccess()
+      } else {
+        router.push(isEditing ? `/dashboard/clients/${clientData?.id}` : "/dashboard/clients")
+      }
     } catch (error) {
       console.error(isEditing ? "Error updating client:" : "Error creating client:", error)
       toast({
@@ -127,12 +131,12 @@ export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
 
               <FormField
                 control={form.control}
-                name="address"
+                name="industry"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Address</FormLabel>
+                    <FormLabel>Industry</FormLabel>
                     <FormControl>
-                      <Input placeholder="123 Main St, City, State" {...field} />
+                      <Input placeholder="Technology, Healthcare, Finance, etc." {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -141,6 +145,20 @@ export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
             </div>
 
             <div className="grid gap-6 grid-cols-1 sm:grid-cols-2">
+              <FormField
+                control={form.control}
+                name="contact_name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Contact Name</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="status"
@@ -197,27 +215,13 @@ export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
 
             <FormField
               control={form.control}
-              name="billingTerms"
+              name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Billing Terms</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Net 30, Net 60, etc." {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="contractDetails"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Contract Details</FormLabel>
+                  <FormLabel>Notes</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Contract terms, agreements, and other details..."
+                      placeholder="Additional notes about the client..."
                       className="min-h-[120px]"
                       {...field}
                     />
@@ -228,7 +232,11 @@ export function ClientForm({ clientData, isEditing = false }: ClientFormProps) {
             />
 
             <div className="flex justify-end gap-3">
-              <Button type="button" variant="outline" onClick={() => router.back()}>
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={onCancel || (() => router.back())}
+              >
                 Cancel
               </Button>
               <Button type="submit">{isEditing ? "Update Client" : "Create Client"}</Button>

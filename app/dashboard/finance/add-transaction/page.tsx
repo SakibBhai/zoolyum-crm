@@ -26,7 +26,7 @@ export default function AddTransactionPage() {
       {/* Page Header */}
       <PageHeader
         heading="Add New Transaction"
-        text="Record a new financial transaction with detailed information for accurate tracking and reporting."
+        subheading="Record a new financial transaction with detailed information for accurate tracking and reporting."
       />
 
       {/* Transaction Form */}

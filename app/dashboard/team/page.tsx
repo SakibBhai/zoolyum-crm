@@ -35,8 +35,11 @@ export default function TeamPage() {
       }
       const data = await response.json()
       
+      // Ensure data.teamMembers exists and is an array
+      const teamMembersArray = Array.isArray(data.teamMembers) ? data.teamMembers : []
+      
       // Transform database response to match TeamMember interface
-      const transformedMembers: TeamMember[] = data.map((member: any) => ({
+      const transformedMembers: TeamMember[] = teamMembersArray.map((member: any) => ({
         id: member.id.toString(),
         name: member.name,
         role: member.role,

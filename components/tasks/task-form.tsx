@@ -102,7 +102,7 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
   }
   
   // Use the team members from the earlier context call or fallback to context team members
-  const finalTeamMembers = teamMembers.length > 0 ? teamMembers : contextTeamMembers
+  const finalTeamMembers = (teamMembers && teamMembers.length > 0) ? teamMembers : (contextTeamMembers || [])
   const { projects } = useProjectContext()
 
   const [selectedDependencies, setSelectedDependencies] = useState<

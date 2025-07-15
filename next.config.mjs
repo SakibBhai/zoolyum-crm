@@ -18,7 +18,7 @@ const nextConfig = {
   
   // Experimental features for better performance
   experimental: {
-    serverComponentsExternalPackages: ['@neondatabase/serverless'],
+    // serverComponentsExternalPackages moved to top-level serverExternalPackages
   },
   
   // Webpack configuration for better bundling

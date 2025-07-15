@@ -25,7 +25,7 @@ export function DatePicker({ selected, onSelect, className, disabled, fromDate, 
           className={cn("w-full justify-start text-left font-normal", !selected && "text-muted-foreground", className)}
         >
           <CalendarIcon className="mr-2 h-4 w-4" />
-          {selected ? format(selected, "PPP") : <span>Pick a date</span>}
+          {selected && !isNaN(selected.getTime()) ? format(selected, "PPP") : <span>Pick a date</span>}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
