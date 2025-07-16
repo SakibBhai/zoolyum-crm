@@ -41,7 +41,7 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Lead } from "./leads-overview"
+import { Lead } from "@/hooks/use-leads"
 
 export interface Activity {
   id: string

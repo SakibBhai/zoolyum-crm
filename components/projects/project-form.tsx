@@ -80,10 +80,11 @@ export function ProjectForm() {
     async function fetchClients() {
       try {
         setIsLoading(true)
-        const response = await fetch("/api/clients")
+        const response = await fetch("/api/clients?page=1&limit=100")
         if (response.ok) {
-          const clientsData = await response.json()
-          setClients(Array.isArray(clientsData) ? clientsData : [])
+          const data = await response.json()
+          // Extract clients from the paginated response
+          setClients(data.clients || [])
         } else {
           console.error("Failed to fetch clients:", await response.text())
           setClients([])

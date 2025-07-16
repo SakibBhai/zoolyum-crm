@@ -34,7 +34,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Lead } from "./leads-overview"
+import { Lead } from "@/hooks/use-leads"
 
 interface LeadsListProps {
   leads: Lead[]

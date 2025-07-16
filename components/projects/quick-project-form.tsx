@@ -112,7 +112,7 @@ export function QuickProjectForm({ onSuccess, onCancel, defaultClientId }: Quick
       try {
         setIsLoadingClients(true)
         const [clientsResponse, teamResponse] = await Promise.all([
-          fetch("/api/clients"),
+          fetch("/api/clients?page=1&limit=100"),
           fetch("/api/team")
         ])
 
@@ -121,7 +121,7 @@ export function QuickProjectForm({ onSuccess, onCancel, defaultClientId }: Quick
         }
 
         const clientsData = await clientsResponse.json()
-        setClients(Array.isArray(clientsData) ? clientsData : [])
+        setClients(clientsData.clients || [])
 
         if (teamResponse.ok) {
           const teamData = await teamResponse.json()

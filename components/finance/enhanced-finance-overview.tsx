@@ -120,12 +120,12 @@ export function EnhancedFinanceOverview() {
 
   const handleAddTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
     const result = await createTransaction({
-      ...transaction,
-      // Map frontend fields to API fields
+      type: transaction.type,
+      amount: transaction.amount,
+      category: transaction.category,
+      description: transaction.description,
       date: transaction.date || new Date().toISOString().split('T')[0],
-      status: 'completed',
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      createdAt: new Date().toISOString()
     })
     
     if (result) {
@@ -136,9 +136,18 @@ export function EnhancedFinanceOverview() {
   }
 
   const handleAddEnhancedTransaction = (transaction: Omit<EnhancedTransaction, 'id' | 'createdAt'>) => {
+    // Generate a simple UUID-like string for compatibility
+    const generateId = () => {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        const r = Math.random() * 16 | 0;
+        const v = c === 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    };
+    
     const newTransaction: EnhancedTransaction = {
       ...transaction,
-      id: crypto.randomUUID(),
+      id: generateId(),
       createdAt: new Date().toISOString()
     }
     setEnhancedTransactions(prev => [newTransaction, ...prev])
@@ -199,7 +208,7 @@ export function EnhancedFinanceOverview() {
   }
 
   // Calculate summary statistics for current view
-  const currentTransactions = activeView === 'standard' ? transactions : enhancedTransactions
+  const currentTransactions = activeView === 'standard' ? (transactions || []) : (enhancedTransactions || [])
   
   // Use API financial summary for standard view, calculate for enhanced view
   const totalIncome = activeView === 'standard' && financialSummary 
@@ -216,11 +225,11 @@ export function EnhancedFinanceOverview() {
 
   // Enhanced transaction statistics
   const enhancedStats = {
-    multiCurrency: enhancedTransactions.filter(t => t.currency !== 'BDT').length,
-    recurring: enhancedTransactions.filter(t => t.isRecurring).length,
-    confidential: enhancedTransactions.filter(t => t.isConfidential).length,
-    withAttachments: enhancedTransactions.filter(t => t.attachments.length > 0).length,
-    withVendors: enhancedTransactions.filter(t => t.vendorClient).length
+    multiCurrency: (enhancedTransactions || []).filter(t => t.currency !== 'BDT').length,
+    recurring: (enhancedTransactions || []).filter(t => t.isRecurring).length,
+    confidential: (enhancedTransactions || []).filter(t => t.isConfidential).length,
+    withAttachments: (enhancedTransactions || []).filter(t => t.attachments?.length > 0).length,
+    withVendors: (enhancedTransactions || []).filter(t => t.vendorClient).length
   }
 
   return (
@@ -300,7 +309,7 @@ export function EnhancedFinanceOverview() {
               </div>
             ) : (
               <>
-                <div className="text-2xl font-bold text-green-600">৳{totalIncome.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-2xl font-bold text-green-600">৳{(totalIncome ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <p className="text-xs text-muted-foreground">
                   {currentTransactions.filter(t => t.type === 'income').length} transactions
                 </p>
@@ -322,7 +331,7 @@ export function EnhancedFinanceOverview() {
               </div>
             ) : (
               <>
-                <div className="text-2xl font-bold text-red-600">৳{totalExpenses.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                <div className="text-2xl font-bold text-red-600">৳{(totalExpenses ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                 <p className="text-xs text-muted-foreground">
                   {currentTransactions.filter(t => t.type === 'expense').length} transactions
                 </p>
@@ -347,7 +356,7 @@ export function EnhancedFinanceOverview() {
                 <div className={`text-2xl font-bold ${
                   netBalance >= 0 ? 'text-green-600' : 'text-red-600'
                 }`}>
-                  ৳{netBalance.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ৳{(netBalance ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   {netBalance >= 0 ? 'Positive' : 'Negative'} balance
@@ -381,7 +390,7 @@ export function EnhancedFinanceOverview() {
       </div>
 
       {/* Enterprise Stats */}
-      {activeView === 'enterprise' && enhancedTransactions.length > 0 && (
+      {activeView === 'enterprise' && (enhancedTransactions || []).length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -482,7 +491,7 @@ export function EnhancedFinanceOverview() {
             <TransactionFilters
               filters={filters}
               onFiltersChange={setFilters}
-              transactions={activeView === 'standard' ? transactions : enhancedTransactions}
+              transactions={activeView === 'standard' ? (transactions || []) : (enhancedTransactions || [])}
             />
           </CardContent>
         </Card>
@@ -566,18 +575,24 @@ export function EnhancedFinanceOverview() {
         <TransactionForm
           transaction={editingTransaction}
           onSubmit={editingTransaction ? 
-            (updatedTransaction) => {
-              setTransactions(prev => prev.map(t => 
-                t.id === editingTransaction.id 
-                  ? { ...updatedTransaction, id: editingTransaction.id, createdAt: editingTransaction.createdAt }
-                  : t
-              ))
-              setEditingTransaction(null)
-              setShowTransactionForm(false)
-              toast({
-                title: "Transaction Updated",
-                description: "Transaction has been successfully updated.",
+            async (updatedTransaction) => {
+              const success = await updateTransaction(editingTransaction.id, {
+                type: updatedTransaction.type,
+                amount: updatedTransaction.amount,
+                category: updatedTransaction.category,
+                description: updatedTransaction.description,
+                date: updatedTransaction.date
               })
+              
+              if (success) {
+                setEditingTransaction(null)
+                setShowTransactionForm(false)
+                fetchFinancialSummary() // Refresh summary
+                toast({
+                  title: "Transaction Updated",
+                  description: "Transaction has been successfully updated.",
+                })
+              }
             } : handleAddTransaction
           }
           onCancel={() => {

@@ -44,7 +44,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Lead } from "./leads-overview"
+import { Lead } from "@/hooks/use-leads"
 
 interface LeadSegmentationProps {
   leads: Lead[]

@@ -178,10 +178,10 @@ export function EnhancedProjectForm({ open, onOpenChange, project, onSuccess, mo
 
   const fetchClients = async () => {
     try {
-      const response = await fetch('/api/clients')
+      const response = await fetch('/api/clients?page=1&limit=100')
       if (response.ok) {
         const data = await response.json()
-        setClients(data)
+        setClients(data.clients || [])
       }
     } catch (error) {
       console.error('Error fetching clients:', error)

@@ -42,7 +42,7 @@ import {
 } from "@/components/ui/popover"
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
-import { Lead } from "./leads-overview"
+import { Lead } from "@/hooks/use-leads"
 
 const leadFormSchema = z.object({
   firstName: z.string().min(1, "First name is required").max(50, "First name must be less than 50 characters"),

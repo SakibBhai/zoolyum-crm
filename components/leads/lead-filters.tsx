@@ -22,7 +22,7 @@ import {
 import { Calendar } from "@/components/ui/calendar"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Lead, FilterOptions } from "./leads-overview"
+import { Lead, FilterOptions } from "@/hooks/use-leads"
 
 interface LeadFiltersProps {
   filters: FilterOptions

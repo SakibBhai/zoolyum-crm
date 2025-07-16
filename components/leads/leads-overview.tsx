@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Plus, Download, Filter, Search, Target, TrendingUp, Users, Phone, Mail } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -14,56 +14,9 @@ import { LeadFilters } from "./lead-filters"
 import { LeadAnalytics } from "./lead-analytics"
 import { ActivityTracker } from "./activity-tracker"
 import { LeadSegmentation } from "./lead-segmentation"
+import { useLeads, Lead, Activity, FilterOptions } from "@/hooks/use-leads"
 
-export interface Lead {
-  id: string
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  company: string
-  position: string
-  source: string
-  status: 'new' | 'contacted' | 'qualified' | 'proposal' | 'negotiation' | 'closed-won' | 'closed-lost'
-  assignedTo: string
-  value: number
-  notes: string
-  tags: string[]
-  createdAt: Date
-  updatedAt: Date
-  lastContactDate?: Date
-  nextFollowUp?: Date
-  location: string
-  industry: string
-  leadScore: number
-}
 
-export interface Activity {
-  id: string
-  leadId: string
-  type: 'call' | 'email' | 'meeting' | 'note' | 'task'
-  subject: string
-  description: string
-  date: Date
-  duration?: number
-  outcome?: string
-  nextAction?: string
-  createdBy: string
-}
-
-export interface FilterOptions {
-  status: string
-  source: string
-  assignedTo: string
-  tags: string[]
-  dateRange: { from: Date | null; to: Date | null }
-  valueRange: { min: number | null; max: number | null }
-  location: string
-  industry: string
-  leadScore: { min: number | null; max: number | null }
-  sortBy: 'createdAt' | 'updatedAt' | 'value' | 'leadScore' | 'lastName'
-  sortOrder: 'asc' | 'desc'
-}
 
 const LEAD_SOURCES = [
   'Website', 'Social Media', 'Email Campaign', 'Cold Call', 'Referral',
@@ -86,7 +39,23 @@ const SALES_REPS = [
 
 export function LeadsOverview() {
   const { toast } = useToast()
-  const [leads, setLeads] = useState<Lead[]>([])
+  const {
+    leads,
+    stats,
+    pagination,
+    loading,
+    error,
+    fetchLeads,
+    fetchStats,
+    createLead,
+    updateLead,
+    deleteLead,
+    bulkDeleteLeads,
+    getLead,
+    createActivity,
+    getActivities
+  } = useLeads()
+  
   const [activities, setActivities] = useState<Activity[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [showLeadForm, setShowLeadForm] = useState(false)
@@ -107,193 +76,125 @@ export function LeadsOverview() {
     sortOrder: 'desc'
   })
 
-  // Sample data initialization
-  useState(() => {
-    const sampleLeads: Lead[] = [
-      {
-        id: '1',
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        phone: '+1-555-0123',
-        company: 'Tech Solutions Inc',
-        position: 'CTO',
-        source: 'Website',
-        status: 'qualified',
-        assignedTo: 'Sarah Johnson',
-        value: 50000,
-        notes: 'Interested in enterprise solution',
-        tags: ['enterprise', 'high-value'],
-        createdAt: new Date('2024-01-15'),
-        updatedAt: new Date('2024-01-20'),
-        lastContactDate: new Date('2024-01-18'),
-        nextFollowUp: new Date('2024-01-25'),
-        location: 'New York',
-        industry: 'Technology',
-        leadScore: 85
-      },
-      {
-        id: '2',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane.smith@company.com',
-        phone: '+1-555-0456',
-        company: 'Marketing Pro',
-        position: 'Marketing Director',
-        source: 'Social Media',
-        status: 'contacted',
-        assignedTo: 'John Smith',
-        value: 25000,
-        notes: 'Looking for marketing automation tools',
-        tags: ['marketing', 'automation'],
-        createdAt: new Date('2024-01-10'),
-        updatedAt: new Date('2024-01-15'),
-        lastContactDate: new Date('2024-01-12'),
-        nextFollowUp: new Date('2024-01-22'),
-        location: 'California',
-        industry: 'Marketing',
-        leadScore: 72
-      }
-    ]
-    setLeads(sampleLeads)
-  })
+  // Load initial data
+  useEffect(() => {
+    loadLeads()
+    fetchStats()
+  }, [])
 
-  // Filter and search leads
-  const filteredLeads = useMemo(() => {
-    let filtered = leads.filter(lead => {
-      const matchesSearch = searchTerm === '' || 
-        `${lead.firstName} ${lead.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead.company.toLowerCase().includes(searchTerm.toLowerCase())
-
-      const matchesStatus = filters.status === 'all' || lead.status === filters.status
-      const matchesSource = filters.source === 'all' || lead.source === filters.source
-      const matchesAssignedTo = filters.assignedTo === 'all' || lead.assignedTo === filters.assignedTo
-      const matchesLocation = filters.location === 'all' || lead.location === filters.location
-      const matchesIndustry = filters.industry === 'all' || lead.industry === filters.industry
-
-      const matchesTags = filters.tags.length === 0 || 
-        filters.tags.some(tag => lead.tags.includes(tag))
-
-      const matchesDateRange = !filters.dateRange.from || !filters.dateRange.to ||
-        (lead.createdAt >= filters.dateRange.from && lead.createdAt <= filters.dateRange.to)
-
-      const matchesValueRange = 
-        (filters.valueRange.min === null || lead.value >= filters.valueRange.min) &&
-        (filters.valueRange.max === null || lead.value <= filters.valueRange.max)
-
-      const matchesLeadScore = 
-        (filters.leadScore.min === null || lead.leadScore >= filters.leadScore.min) &&
-        (filters.leadScore.max === null || lead.leadScore <= filters.leadScore.max)
-
-      return matchesSearch && matchesStatus && matchesSource && matchesAssignedTo &&
-             matchesLocation && matchesIndustry && matchesTags && matchesDateRange &&
-             matchesValueRange && matchesLeadScore
-    })
-
-    // Apply sorting
-    filtered.sort((a, b) => {
-      let aValue: any, bValue: any
-      
-      switch (filters.sortBy) {
-        case 'createdAt':
-        case 'updatedAt':
-          aValue = new Date(a[filters.sortBy]).getTime()
-          bValue = new Date(b[filters.sortBy]).getTime()
-          break
-        case 'lastName':
-          aValue = a.lastName.toLowerCase()
-          bValue = b.lastName.toLowerCase()
-          break
-        case 'value':
-        case 'leadScore':
-          aValue = a[filters.sortBy]
-          bValue = b[filters.sortBy]
-          break
-        default:
-          return 0
-      }
-
-      if (filters.sortOrder === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
-      }
-    })
-
-    return filtered
-  }, [leads, searchTerm, filters])
-
-  // Calculate summary statistics
-  const stats = useMemo(() => {
-    const totalLeads = leads.length
-    const qualifiedLeads = leads.filter(l => ['qualified', 'proposal', 'negotiation'].includes(l.status)).length
-    const closedWonLeads = leads.filter(l => l.status === 'closed-won').length
-    const totalValue = leads.reduce((sum, lead) => sum + lead.value, 0)
-    const conversionRate = totalLeads > 0 ? (closedWonLeads / totalLeads) * 100 : 0
-    const avgLeadScore = totalLeads > 0 ? leads.reduce((sum, lead) => sum + lead.leadScore, 0) / totalLeads : 0
-
-    return {
-      totalLeads,
-      qualifiedLeads,
-      closedWonLeads,
-      totalValue,
-      conversionRate,
-      avgLeadScore
+  // Load leads with current filters
+  const loadLeads = async () => {
+    const leadsFilters = {
+      search: searchTerm || undefined,
+      status: filters.status !== 'all' ? filters.status : undefined,
+      source: filters.source !== 'all' ? filters.source : undefined,
+      assignedTo: filters.assignedTo !== 'all' ? filters.assignedTo : undefined,
+      industry: filters.industry !== 'all' ? filters.industry : undefined,
+      location: filters.location !== 'all' ? filters.location : undefined,
+      minValue: filters.valueRange.min,
+      maxValue: filters.valueRange.max,
+      minLeadScore: filters.leadScore.min,
+      maxLeadScore: filters.leadScore.max,
+      dateFrom: filters.dateRange.from?.toISOString(),
+      dateTo: filters.dateRange.to?.toISOString()
     }
-  }, [leads])
 
-  const handleAddLead = (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
-    const newLead: Lead = {
-      ...leadData,
-      id: Date.now().toString(),
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }
-    setLeads(prev => [newLead, ...prev])
-    setShowLeadForm(false)
-    toast({
-      title: "Lead Added",
-      description: `${newLead.firstName} ${newLead.lastName} has been added successfully.`,
-    })
+    await fetchLeads(leadsFilters, 1, 50, filters.sortBy, filters.sortOrder)
   }
 
-  const handleEditLead = (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
+  // Reload leads when filters change
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      loadLeads()
+    }, 300) // Debounce search
+
+    return () => clearTimeout(timeoutId)
+  }, [searchTerm, filters])
+
+  // Use leads from hook (already filtered by API)
+  const filteredLeads = leads
+
+  // Stats are now provided by the hook
+
+  const handleAddLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      await createLead(leadData)
+      setShowLeadForm(false)
+      toast({
+        title: "Lead Added",
+        description: `${leadData.firstName} ${leadData.lastName} has been added successfully.`,
+      })
+      loadLeads() // Refresh the list
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add lead. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleEditLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!editingLead) return
     
-    const updatedLead: Lead = {
-      ...leadData,
-      id: editingLead.id,
-      createdAt: editingLead.createdAt,
-      updatedAt: new Date()
+    try {
+      await updateLead(editingLead.id, leadData)
+      setEditingLead(null)
+      toast({
+        title: "Lead Updated",
+        description: `${leadData.firstName} ${leadData.lastName} has been updated successfully.`,
+      })
+      loadLeads() // Refresh the list
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update lead. Please try again.",
+        variant: "destructive"
+      })
     }
-    
-    setLeads(prev => prev.map(lead => 
-      lead.id === editingLead.id ? updatedLead : lead
-    ))
-    setEditingLead(null)
-    toast({
-      title: "Lead Updated",
-      description: `${updatedLead.firstName} ${updatedLead.lastName} has been updated successfully.`,
-    })
   }
 
-  const handleDeleteLead = (leadId: string) => {
+  const handleDeleteLead = async (leadId: string) => {
     const lead = leads.find(l => l.id === leadId)
-    setLeads(prev => prev.filter(l => l.id !== leadId))
-    setActivities(prev => prev.filter(a => a.leadId !== leadId))
-    toast({
-      title: "Lead Deleted",
-      description: lead ? `${lead.firstName} ${lead.lastName} has been deleted.` : "Lead has been deleted.",
-    })
+    try {
+      await deleteLead(leadId)
+      toast({
+        title: "Lead Deleted",
+        description: lead ? `${lead.firstName} ${lead.lastName} has been deleted.` : "Lead has been deleted.",
+      })
+      loadLeads() // Refresh the list
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete lead. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
-  const handleAddActivity = (activity: Omit<Activity, 'id'>) => {
-    const newActivity: Activity = {
-      ...activity,
-      id: Date.now().toString()
+  const handleAddActivity = async (activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>) => {
+    try {
+      await createActivity(activity.leadId, {
+        type: activity.type,
+        description: activity.description,
+        date: activity.date,
+        duration: activity.duration,
+        outcome: activity.outcome,
+        nextAction: activity.nextAction,
+        priority: activity.priority
+      })
+      // Refresh activities for the lead
+      const result = await getActivities(activity.leadId)
+      if (result) {
+        setActivities(result.activities)
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add activity. Please try again.",
+        variant: "destructive"
+      })
     }
-    setActivities([...activities, newActivity])
   }
 
   const handleUpdateActivity = (id: string, updates: Partial<Activity>) => {
@@ -306,22 +207,42 @@ export function LeadsOverview() {
     setActivities(activities.filter(activity => activity.id !== id))
   }
 
-  const handleBulkUpdateLeads = (leadIds: string[], updates: Partial<Lead>) => {
-    setLeads(leads.map(lead => 
-      leadIds.includes(lead.id) ? { ...lead, ...updates } : lead
-    ))
+  const handleBulkUpdateLeads = async (leadIds: string[], updates: Partial<Lead>) => {
+    try {
+      // Update each lead individually
+      await Promise.all(leadIds.map(id => updateLead(id, updates)))
+      loadLeads() // Refresh the list
+      toast({
+        title: "Leads Updated",
+        description: `${leadIds.length} leads have been updated successfully.`,
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update leads. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
-  const handleBulkAction = (action: string, leadIds: string[]) => {
+  const handleBulkAction = async (action: string, leadIds: string[]) => {
     switch (action) {
       case 'delete':
-        setLeads(prev => prev.filter(lead => !leadIds.includes(lead.id)))
-        setActivities(prev => prev.filter(activity => !leadIds.includes(activity.leadId)))
-        setSelectedLeads([])
-        toast({
-          title: "Leads Deleted",
-          description: `${leadIds.length} leads have been deleted.`,
-        })
+        try {
+          await bulkDeleteLeads(leadIds)
+          setSelectedLeads([])
+          toast({
+            title: "Leads Deleted",
+            description: `${leadIds.length} leads have been deleted.`,
+          })
+          loadLeads() // Refresh the list
+        } catch (error) {
+          toast({
+            title: "Error",
+            description: "Failed to delete leads. Please try again.",
+            variant: "destructive"
+          })
+        }
         break
       case 'export':
         exportLeads(leads.filter(lead => leadIds.includes(lead.id)))
@@ -346,7 +267,7 @@ export function LeadsOverview() {
         lead.leadScore,
         lead.location,
         lead.industry,
-        lead.createdAt.toISOString().split('T')[0]
+        new Date(lead.createdAt).toISOString().split('T')[0]
       ].join(','))
     ].join('\n')
 
@@ -428,7 +349,7 @@ export function LeadsOverview() {
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats.totalLeads}</div>
+                <div className="text-2xl font-bold">{stats?.totalLeads || 0}</div>
                 <p className="text-xs text-muted-foreground">
                   {filteredLeads.length} filtered
                 </p>
@@ -441,10 +362,10 @@ export function LeadsOverview() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {stats.qualifiedLeads}
+                  {stats?.qualifiedLeads || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {stats.totalLeads > 0 ? ((stats.qualifiedLeads / stats.totalLeads) * 100).toFixed(1) : 0}% of total
+                  {(stats?.totalLeads || 0) > 0 ? (((stats?.qualifiedLeads || 0) / (stats?.totalLeads || 1)) * 100).toFixed(1) : 0}% of total
                 </p>
               </CardContent>
             </Card>
@@ -455,7 +376,7 @@ export function LeadsOverview() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(stats.totalValue)}
+                  {formatCurrency(stats?.totalValue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Total potential revenue
@@ -469,10 +390,10 @@ export function LeadsOverview() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {stats.conversionRate.toFixed(1)}%
+                  {(stats?.conversionRate || 0).toFixed(1)}%
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {stats.closedWonLeads} closed won
+                  {stats?.closedWonLeads || 0} closed won
                 </p>
               </CardContent>
             </Card>

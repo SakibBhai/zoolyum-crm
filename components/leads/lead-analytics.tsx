@@ -23,7 +23,7 @@ import { format, subMonths, startOfMonth, endOfMonth, eachMonthOfInterval } from
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
-import { Lead, Activity } from "./leads-overview"
+import { Lead, Activity } from "@/hooks/use-leads"
 
 interface LeadAnalyticsProps {
   leads: Lead[]

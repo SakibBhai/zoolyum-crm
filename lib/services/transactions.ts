@@ -101,7 +101,19 @@ class TransactionsService {
       throw new Error(`Failed to fetch transactions: ${response.statusText}`)
     }
     
-    return response.json()
+    const result = await response.json()
+    
+    // Handle the actual API response format
+    if (result.success && result.data) {
+      return {
+        transactions: result.data,
+        total: result.pagination?.total || result.data.length,
+        page: result.pagination?.page || 1,
+        totalPages: result.pagination?.totalPages || 1
+      }
+    }
+    
+    throw new Error(result.message || 'Failed to fetch transactions')
   }
 
   async getTransaction(id: string): Promise<Transaction> {
@@ -128,7 +140,14 @@ class TransactionsService {
       throw new Error(error.message || `Failed to create transaction: ${response.statusText}`)
     }
     
-    return response.json()
+    const result = await response.json()
+    
+    // Handle the actual API response format
+    if (result.success && result.data) {
+      return result.data
+    }
+    
+    throw new Error(result.message || 'Failed to create transaction')
   }
 
   async updateTransaction(id: string, transaction: Partial<Transaction>): Promise<Transaction> {
@@ -176,7 +195,14 @@ class TransactionsService {
       throw new Error(`Failed to fetch financial summary: ${response.statusText}`)
     }
     
-    return response.json()
+    const result = await response.json()
+    
+    // Handle the actual API response format
+    if (result.success && result.data) {
+      return result.data
+    }
+    
+    throw new Error(result.message || 'Failed to fetch financial summary')
   }
 
   async getCategories(type?: 'income' | 'expense'): Promise<TransactionCategory[]> {
