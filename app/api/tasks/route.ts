@@ -15,15 +15,15 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     console.log("Received task data in API:", body)
-    
+
     const newTask = await tasksService.create(body)
     console.log("Created task in API:", newTask)
-    
+
     return NextResponse.json(newTask, { status: 201 })
   } catch (error) {
     console.error("Error in POST /api/tasks:", error)
-    return NextResponse.json({ 
-      error: "Failed to create task", 
+    return NextResponse.json({
+      error: "Failed to create task",
       message: error instanceof Error ? error.message : "Unknown error",
       details: error
     }, { status: 500 })
@@ -34,7 +34,7 @@ export async function PUT(request: NextRequest) {
   try {
     const body = await request.json()
     const { id, ...updates } = body
-    
+
     if (!id) {
       return NextResponse.json(
         { error: "Task ID is required" },
@@ -52,7 +52,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const updatedTask = await tasksService.update(id, updates)
-    
+
     if (!updatedTask) {
       return NextResponse.json(
         { error: "Failed to update task" },
@@ -74,7 +74,7 @@ export async function DELETE(request: NextRequest) {
   try {
     const body = await request.json()
     const { id } = body
-    
+
     if (!id) {
       return NextResponse.json(
         { error: "Task ID is required" },

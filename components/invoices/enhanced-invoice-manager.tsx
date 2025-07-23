@@ -13,17 +13,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { 
-  FileText, 
-  Download, 
-  Mail, 
-  Send, 
-  Eye, 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Clock, 
-  DollarSign, 
+import {
+  FileText,
+  Download,
+  Mail,
+  Send,
+  Eye,
+  Plus,
+  Edit,
+  Trash2,
+  Clock,
+  DollarSign,
   AlertCircle,
   CheckCircle,
   Calendar,
@@ -169,7 +169,7 @@ export function EnhancedInvoiceManager({
         download: 'true',
         ...(templateId && { templateId })
       })
-      
+
       const response = await fetch(`/api/invoices/${invoice.id}/pdf?${params}`)
       if (response.ok) {
         const blob = await response.blob()
@@ -181,7 +181,7 @@ export function EnhancedInvoiceManager({
         a.click()
         window.URL.revokeObjectURL(url)
         document.body.removeChild(a)
-        
+
         toast({
           title: 'Success',
           description: 'Invoice PDF downloaded successfully'
@@ -198,7 +198,7 @@ export function EnhancedInvoiceManager({
 
   const handleSendEmail = async () => {
     if (!selectedInvoice) return
-    
+
     try {
       const response = await fetch(`/api/invoices/${selectedInvoice.id}/send-email`, {
         method: 'POST',
@@ -208,7 +208,7 @@ export function EnhancedInvoiceManager({
           emailType: 'invoice'
         })
       })
-      
+
       if (response.ok) {
         toast({
           title: 'Success',
@@ -231,7 +231,7 @@ export function EnhancedInvoiceManager({
 
   const handleSendReminder = async () => {
     if (!selectedInvoice) return
-    
+
     try {
       const response = await fetch(`/api/invoices/${selectedInvoice.id}/reminders`, {
         method: 'POST',
@@ -241,7 +241,7 @@ export function EnhancedInvoiceManager({
           reminderType: 'overdue'
         })
       })
-      
+
       if (response.ok) {
         toast({
           title: 'Success',
@@ -264,14 +264,14 @@ export function EnhancedInvoiceManager({
 
   const handleAddPayment = async () => {
     if (!selectedInvoice) return
-    
+
     try {
       const response = await fetch(`/api/invoices/${selectedInvoice.id}/payments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentData)
       })
-      
+
       if (response.ok) {
         toast({
           title: 'Success',
@@ -310,10 +310,10 @@ export function EnhancedInvoiceManager({
       overdue: { color: 'bg-red-500', icon: AlertCircle },
       cancelled: { color: 'bg-gray-400', icon: Trash2 }
     }
-    
+
     const config = statusConfig[status as keyof typeof statusConfig] || statusConfig.draft
     const Icon = config.icon
-    
+
     return (
       <Badge className={`${config.color} text-white`}>
         <Icon className="w-3 h-3 mr-1" />
@@ -325,17 +325,17 @@ export function EnhancedInvoiceManager({
   const openEmailDialog = (invoice: Invoice, isReminder = false) => {
     setSelectedInvoice(invoice)
     setEmailData({
-      to: invoice.clientEmail || '',
+      to: invoice.recipientInfo?.email || '',
       cc: '',
       bcc: '',
-      subject: isReminder 
-        ? `Payment Reminder: Invoice ${invoice.invoiceNumber}` 
+      subject: isReminder
+        ? `Payment Reminder: Invoice ${invoice.invoiceNumber}`
         : `Invoice ${invoice.invoiceNumber}`,
       body: '',
       templateId: invoice.templateId || '',
       attachPdf: true
     })
-    
+
     if (isReminder) {
       setShowReminderDialog(true)
     } else {
@@ -392,7 +392,7 @@ export function EnhancedInvoiceManager({
                 />
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="status">Status</Label>
               <Select value={filters.status} onValueChange={(value) => setFilters(prev => ({ ...prev, status: value }))}>
@@ -411,7 +411,7 @@ export function EnhancedInvoiceManager({
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="dateFrom">From Date</Label>
               <Input
@@ -421,7 +421,7 @@ export function EnhancedInvoiceManager({
                 onChange={(e) => setFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="dateTo">To Date</Label>
               <Input
@@ -431,10 +431,10 @@ export function EnhancedInvoiceManager({
                 onChange={(e) => setFilters(prev => ({ ...prev, dateTo: e.target.value }))}
               />
             </div>
-            
+
             <div className="flex items-end">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setFilters({
                   status: 'all',
                   clientId: 'all',
@@ -519,7 +519,7 @@ export function EnhancedInvoiceManager({
                           >
                             <Download className="w-4 h-4" />
                           </Button>
-                          
+
                           <Button
                             variant="ghost"
                             size="sm"
@@ -527,7 +527,7 @@ export function EnhancedInvoiceManager({
                           >
                             <Mail className="w-4 h-4" />
                           </Button>
-                          
+
                           {['sent', 'overdue', 'partial'].includes(invoice.status) && (
                             <Button
                               variant="ghost"
@@ -537,7 +537,7 @@ export function EnhancedInvoiceManager({
                               <AlertCircle className="w-4 h-4" />
                             </Button>
                           )}
-                          
+
                           {invoice.amountDue > 0 && (
                             <Button
                               variant="ghost"
@@ -547,7 +547,7 @@ export function EnhancedInvoiceManager({
                               <DollarSign className="w-4 h-4" />
                             </Button>
                           )}
-                          
+
                           <Button
                             variant="ghost"
                             size="sm"
@@ -563,7 +563,7 @@ export function EnhancedInvoiceManager({
               </TableBody>
             </Table>
           </div>
-          
+
           {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-between items-center mt-4">
@@ -626,7 +626,7 @@ export function EnhancedInvoiceManager({
                 </Select>
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="emailSubject">Subject</Label>
               <Input
@@ -635,7 +635,7 @@ export function EnhancedInvoiceManager({
                 onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="emailBody">Message</Label>
               <Textarea
@@ -646,7 +646,7 @@ export function EnhancedInvoiceManager({
                 placeholder="Optional custom message..."
               />
             </div>
-            
+
             <div className="flex items-center space-x-2">
               <input
                 type="checkbox"
@@ -656,7 +656,7 @@ export function EnhancedInvoiceManager({
               />
               <Label htmlFor="attachPdf">Attach PDF</Label>
             </div>
-            
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowEmailDialog(false)}>
                 Cancel
@@ -703,7 +703,7 @@ export function EnhancedInvoiceManager({
                 </Select>
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="reminderSubject">Subject</Label>
               <Input
@@ -712,7 +712,7 @@ export function EnhancedInvoiceManager({
                 onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
               />
             </div>
-            
+
             <div>
               <Label htmlFor="reminderBody">Message</Label>
               <Textarea
@@ -723,7 +723,7 @@ export function EnhancedInvoiceManager({
                 placeholder="Optional custom reminder message..."
               />
             </div>
-            
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowReminderDialog(false)}>
                 Cancel
@@ -765,7 +765,7 @@ export function EnhancedInvoiceManager({
                 />
               </div>
             </div>
-            
+
             <div>
               <Label htmlFor="paymentMethod">Payment Method</Label>
               <Select value={paymentData.method} onValueChange={(value) => setPaymentData(prev => ({ ...prev, method: value }))}>
@@ -783,7 +783,7 @@ export function EnhancedInvoiceManager({
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label htmlFor="paymentReference">Reference</Label>
               <Input
@@ -793,7 +793,7 @@ export function EnhancedInvoiceManager({
                 placeholder="Transaction ID, check number, etc."
               />
             </div>
-            
+
             <div>
               <Label htmlFor="paymentNotes">Notes</Label>
               <Textarea
@@ -804,7 +804,7 @@ export function EnhancedInvoiceManager({
                 rows={3}
               />
             </div>
-            
+
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowPaymentDialog(false)}>
                 Cancel

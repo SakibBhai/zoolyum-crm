@@ -28,8 +28,8 @@ const formSchema = z.object({
   }),
   startDate: z.date().optional(),
   deadline: z.date().optional(),
-  status: z.enum(["draft", "active", "on_hold", "completed"]).default("draft"),
-  estimatedBudget: z.number().min(0).default(0),
+  status: z.enum(["draft", "active", "on_hold", "completed"]),
+  estimatedBudget: z.number().min(0),
   description: z.string().optional(),
 })
 
@@ -43,7 +43,7 @@ const clientSchema = z.object({
     message: "Please enter a valid email address.",
   }).optional().or(z.literal("")),
   phone: z.string().optional(),
-  status: z.enum(["active", "inactive", "prospect"]).default("prospect"),
+  status: z.enum(["active", "inactive", "prospect"]),
   notes: z.string().optional(),
 })
 
@@ -55,7 +55,7 @@ export function ProjectForm() {
   const [isClientDialogOpen, setIsClientDialogOpen] = useState(false)
   const [isCreatingClient, setIsCreatingClient] = useState(false)
 
-  const form = useForm<z.infer<typeof formSchema>>({    
+  const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: "",
@@ -124,17 +124,17 @@ export function ProjectForm() {
       }
 
       const newClient = await response.json()
-      
+
       // Update clients list
       setClients(prev => [...prev, newClient])
-      
+
       // Select the new client in the project form
       form.setValue("clientId", newClient.id)
-      
+
       // Reset client form and close dialog
       clientForm.reset()
       setIsClientDialogOpen(false)
-      
+
       toast({
         title: "Client created",
         description: `${values.name} has been added to your clients and selected for this project.`,
@@ -162,8 +162,8 @@ export function ProjectForm() {
         body: JSON.stringify({
           name: values.name,
           client_id: values.clientId,
-          start_date: values.startDate.toISOString().split("T")[0],
-          end_date: values.deadline.toISOString().split("T")[0],
+          start_date: values.startDate?.toISOString().split("T")[0],
+          end_date: values.deadline?.toISOString().split("T")[0],
           status: values.status,
           description: values.description || "",
           estimated_budget: values.estimatedBudget || 0,

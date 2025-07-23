@@ -138,8 +138,8 @@ export function LeadForm({
           value: initialData.value,
           notes: initialData.notes || "",
           tags: initialData.tags || [],
-          lastContactDate: initialData.lastContactDate,
-          nextFollowUp: initialData.nextFollowUp,
+          lastContactDate: initialData.lastContactDate ? new Date(initialData.lastContactDate) : undefined,
+          nextFollowUp: initialData.nextFollowUp ? new Date(initialData.nextFollowUp) : undefined,
           location: initialData.location,
           industry: initialData.industry,
           leadScore: initialData.leadScore,
@@ -173,6 +173,8 @@ export function LeadForm({
       ...values,
       tags: selectedTags,
       notes: values.notes || "",
+      lastContactDate: values.lastContactDate?.toISOString(),
+      nextFollowUp: values.nextFollowUp?.toISOString(),
     }
     onSubmit(leadData)
   }
@@ -208,7 +210,7 @@ export function LeadForm({
             {initialData ? 'Edit Lead' : 'Add New Lead'}
           </DialogTitle>
           <DialogDescription>
-            {initialData 
+            {initialData
               ? 'Update the lead information below.'
               : 'Fill in the details to add a new lead to your pipeline.'
             }
@@ -221,7 +223,7 @@ export function LeadForm({
               {/* Personal Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Personal Information</h3>
-                
+
                 <FormField
                   control={form.control}
                   name="firstName"
@@ -282,7 +284,7 @@ export function LeadForm({
               {/* Company Information */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Company Information</h3>
-                
+
                 <FormField
                   control={form.control}
                   name="company"
@@ -356,7 +358,7 @@ export function LeadForm({
               {/* Lead Details */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Lead Details</h3>
-                
+
                 <FormField
                   control={form.control}
                   name="source"
@@ -479,7 +481,7 @@ export function LeadForm({
               {/* Dates and Additional Info */}
               <div className="space-y-4">
                 <h3 className="text-lg font-medium">Additional Information</h3>
-                
+
                 <FormField
                   control={form.control}
                   name="lastContactDate"

@@ -101,10 +101,10 @@ export function InvoicePrintView({ invoice, onRender }: InvoicePrintViewProps) {
             <span>Tax ({invoice.taxRate}%):</span>
             <span>${invoice.taxAmount.toFixed(2)}</span>
           </div>
-          {invoice.discount > 0 && (
+          {(invoice.discountAmount || 0) > 0 && (
             <div className="flex justify-between py-2">
               <span>Discount:</span>
-              <span>-${invoice.discount.toFixed(2)}</span>
+              <span>-${(invoice.discountAmount || 0).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between py-2 font-bold border-t border-gray-300 mt-2">

@@ -7,27 +7,27 @@ export async function GET(request: NextRequest) {
     const role = searchParams.get('role')
     const department = searchParams.get('department')
     const active = searchParams.get('active')
-    
+
     let teamMembers = await teamService.getAll()
-    
+
     // Apply filters
     if (role) {
-      teamMembers = teamMembers.filter(member => 
+      teamMembers = teamMembers.filter(member =>
         member.role?.toLowerCase().includes(role.toLowerCase())
       )
     }
-    
+
     if (department) {
-      teamMembers = teamMembers.filter(member => 
+      teamMembers = teamMembers.filter(member =>
         member.department?.toLowerCase().includes(department.toLowerCase())
       )
     }
-    
+
     if (active !== null) {
       const isActive = active === 'true'
       teamMembers = teamMembers.filter(member => member.active === isActive)
     }
-    
+
     return NextResponse.json({
       teamMembers,
       total: teamMembers.length
@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     console.log('Received team member data:', body)
-    
+
     // Validate required fields
     const requiredFields = ['name', 'email', 'department']
     for (const field of requiredFields) {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(newTeamMember, { status: 201 })
   } catch (error) {
     console.error("Error in POST /api/team:", error)
-    
+
     // Handle unique constraint violations (duplicate email)
     if (error instanceof Error && error.message.includes('duplicate key')) {
       return NextResponse.json(
@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       )
     }
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       error: "Failed to create team member",
       details: error instanceof Error ? error.message : "Unknown error"
     }, { status: 500 })

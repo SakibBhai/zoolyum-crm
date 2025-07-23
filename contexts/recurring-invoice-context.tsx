@@ -156,7 +156,7 @@ export function RecurringInvoiceProvider({ children }: { children: ReactNode }) 
       dueDate: calculateNextGenerationDate(new Date().toISOString().split("T")[0], "monthly"), // Due in 30 days
       lineItems: template.lineItems,
       taxRate: template.taxRate,
-      discount: template.discount,
+      discountAmount: template.discount,
       notes: template.notes,
     }
 

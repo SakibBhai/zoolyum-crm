@@ -12,9 +12,9 @@ import { LeadForm } from "./lead-form"
 import { LeadsList } from "./leads-list"
 import { LeadFilters } from "./lead-filters"
 import { LeadAnalytics } from "./lead-analytics"
-import { ActivityTracker } from "./activity-tracker"
+import { ActivityTracker, Activity } from "./activity-tracker"
 import { LeadSegmentation } from "./lead-segmentation"
-import { useLeads, Lead, Activity, FilterOptions } from "@/hooks/use-leads"
+import { useLeads, Lead, FilterOptions } from "@/hooks/use-leads"
 
 
 
@@ -55,8 +55,9 @@ export function LeadsOverview() {
     createActivity,
     getActivities
   } = useLeads()
-  
+
   const [activities, setActivities] = useState<Activity[]>([])
+  const [originalActivities, setOriginalActivities] = useState<import('@/hooks/use-leads').Activity[]>([])
   const [searchTerm, setSearchTerm] = useState("")
   const [showLeadForm, setShowLeadForm] = useState(false)
   const [editingLead, setEditingLead] = useState<Lead | null>(null)
@@ -91,10 +92,10 @@ export function LeadsOverview() {
       assignedTo: filters.assignedTo !== 'all' ? filters.assignedTo : undefined,
       industry: filters.industry !== 'all' ? filters.industry : undefined,
       location: filters.location !== 'all' ? filters.location : undefined,
-      minValue: filters.valueRange.min,
-      maxValue: filters.valueRange.max,
-      minLeadScore: filters.leadScore.min,
-      maxLeadScore: filters.leadScore.max,
+      minValue: filters.valueRange.min ?? undefined,
+      maxValue: filters.valueRange.max ?? undefined,
+      minLeadScore: filters.leadScore.min ?? undefined,
+      maxLeadScore: filters.leadScore.max ?? undefined,
       dateFrom: filters.dateRange.from?.toISOString(),
       dateTo: filters.dateRange.to?.toISOString()
     }
@@ -136,13 +137,30 @@ export function LeadsOverview() {
 
   const handleEditLead = async (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => {
     if (!editingLead) return
-    
+
     try {
       await updateLead(editingLead.id, leadData)
       setEditingLead(null)
       toast({
         title: "Lead Updated",
         description: `${leadData.firstName} ${leadData.lastName} has been updated successfully.`,
+      })
+      loadLeads() // Refresh the list
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update lead. Please try again.",
+        variant: "destructive"
+      })
+    }
+  }
+
+  const handleUpdateLead = async (id: string, updates: Partial<Lead>) => {
+    try {
+      await updateLead(id, updates)
+      toast({
+        title: "Lead Updated",
+        description: "Lead has been updated successfully.",
       })
       loadLeads() // Refresh the list
     } catch (error) {
@@ -172,21 +190,37 @@ export function LeadsOverview() {
     }
   }
 
-  const handleAddActivity = async (activity: Omit<Activity, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const handleAddActivity = async (activity: Omit<Activity, 'id' | 'createdAt'>) => {
     try {
       await createActivity(activity.leadId, {
         type: activity.type,
         description: activity.description,
-        date: activity.date,
-        duration: activity.duration,
-        outcome: activity.outcome,
-        nextAction: activity.nextAction,
-        priority: activity.priority
+        date: activity.scheduledDate.toISOString(),
+        priority: activity.priority,
+        outcome: activity.outcome
       })
       // Refresh activities for the lead
       const result = await getActivities(activity.leadId)
       if (result) {
-        setActivities(result.activities)
+        // Store original activities for LeadAnalytics
+        setOriginalActivities(result.activities)
+
+        // Map the use-leads Activity to activity-tracker Activity format
+        const mappedActivities: Activity[] = result.activities
+          .filter(act => ['call', 'email', 'meeting', 'note', 'task'].includes(act.type))
+          .map(act => ({
+            id: act.id,
+            leadId: act.leadId,
+            type: act.type as 'call' | 'email' | 'meeting' | 'note' | 'task',
+            title: act.description,
+            description: act.description,
+            scheduledDate: new Date(act.date || act.createdAt),
+            completed: false,
+            outcome: act.outcome,
+            priority: act.priority,
+            createdAt: new Date(act.createdAt)
+          }))
+        setActivities(mappedActivities)
       }
     } catch (error) {
       toast({
@@ -198,7 +232,7 @@ export function LeadsOverview() {
   }
 
   const handleUpdateActivity = (id: string, updates: Partial<Activity>) => {
-    setActivities(activities.map(activity => 
+    setActivities(activities.map(activity =>
       activity.id === id ? { ...activity, ...updates } : activity
     ))
   }
@@ -349,7 +383,7 @@ export function LeadsOverview() {
                 <Target className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stats?.totalLeads || 0}</div>
+                <div className="text-2xl font-bold">{stats?.overview?.totalLeads || 0}</div>
                 <p className="text-xs text-muted-foreground">
                   {filteredLeads.length} filtered
                 </p>
@@ -362,10 +396,10 @@ export function LeadsOverview() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-blue-600">
-                  {stats?.qualifiedLeads || 0}
+                  {stats?.overview?.qualifiedLeads || 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {(stats?.totalLeads || 0) > 0 ? (((stats?.qualifiedLeads || 0) / (stats?.totalLeads || 1)) * 100).toFixed(1) : 0}% of total
+                  {(stats?.overview?.totalLeads || 0) > 0 ? (((stats?.overview?.qualifiedLeads || 0) / (stats?.overview?.totalLeads || 1)) * 100).toFixed(1) : 0}% of total
                 </p>
               </CardContent>
             </Card>
@@ -376,7 +410,7 @@ export function LeadsOverview() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-green-600">
-                  {formatCurrency(stats?.totalValue || 0)}
+                  {formatCurrency(stats?.overview?.totalValue || 0)}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Total potential revenue
@@ -390,10 +424,10 @@ export function LeadsOverview() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {(stats?.conversionRate || 0).toFixed(1)}%
+                  {(stats?.overview?.conversionRate || 0).toFixed(1)}%
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  {stats?.closedWonLeads || 0} closed won
+                  {stats?.overview?.closedWonLeads || 0} closed won
                 </p>
               </CardContent>
             </Card>
@@ -485,7 +519,7 @@ export function LeadsOverview() {
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">
-          <LeadAnalytics leads={filteredLeads} activities={activities} />
+          <LeadAnalytics leads={filteredLeads} activities={originalActivities} />
         </TabsContent>
 
         <TabsContent value="activities" className="space-y-6">
@@ -501,7 +535,7 @@ export function LeadsOverview() {
         <TabsContent value="segments" className="space-y-6">
           <LeadSegmentation
             leads={leads}
-            onUpdateLead={handleEditLead}
+            onUpdateLead={handleUpdateLead}
             onBulkUpdateLeads={handleBulkUpdateLeads}
           />
         </TabsContent>

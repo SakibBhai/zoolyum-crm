@@ -115,18 +115,18 @@ export function ActivityTracker({
   const filteredActivities = useMemo(() => {
     return activities.filter(activity => {
       const lead = leads.find(l => l.id === activity.leadId)
-      const matchesSearch = 
+      const matchesSearch =
         activity.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
         activity.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        lead?.name.toLowerCase().includes(searchTerm.toLowerCase())
-      
+        `${lead?.firstName} ${lead?.lastName}`.toLowerCase().includes(searchTerm.toLowerCase())
+
       const matchesLead = selectedLead === 'all' || activity.leadId === selectedLead
       const matchesType = selectedType === 'all' || activity.type === selectedType
-      const matchesStatus = selectedStatus === 'all' || 
+      const matchesStatus = selectedStatus === 'all' ||
         (selectedStatus === 'completed' && activity.completed) ||
         (selectedStatus === 'pending' && !activity.completed) ||
         (selectedStatus === 'overdue' && !activity.completed && isPast(activity.scheduledDate))
-      
+
       return matchesSearch && matchesLead && matchesType && matchesStatus
     }).sort((a, b) => {
       // Sort by scheduled date, with overdue items first
@@ -143,8 +143,8 @@ export function ActivityTracker({
   // Get upcoming activities (next 7 days)
   const upcomingActivities = useMemo(() => {
     const nextWeek = addDays(new Date(), 7)
-    return activities.filter(activity => 
-      !activity.completed && 
+    return activities.filter(activity =>
+      !activity.completed &&
       activity.scheduledDate <= nextWeek &&
       activity.scheduledDate >= new Date()
     ).sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
@@ -152,7 +152,7 @@ export function ActivityTracker({
 
   // Get overdue activities
   const overdueActivities = useMemo(() => {
-    return activities.filter(activity => 
+    return activities.filter(activity =>
       !activity.completed && isPast(activity.scheduledDate)
     )
   }, [activities])
@@ -164,15 +164,15 @@ export function ActivityTracker({
     const pending = activities.filter(a => !a.completed).length
     const overdue = overdueActivities.length
     const today = activities.filter(a => !a.completed && isToday(a.scheduledDate)).length
-    
+
     return { total, completed, pending, overdue, today }
   }, [activities, overdueActivities])
 
   const handleAddActivity = () => {
     if (!formData.leadId || !formData.title || !formData.scheduledDate) return
-    
+
     const scheduledDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime || '09:00'}`)
-    
+
     onAddActivity({
       leadId: formData.leadId,
       type: formData.type,
@@ -184,16 +184,16 @@ export function ActivityTracker({
       priority: formData.priority,
       createdAt: new Date()
     })
-    
+
     setIsAddDialogOpen(false)
     resetForm()
   }
 
   const handleEditActivity = () => {
     if (!editingActivity || !formData.title || !formData.scheduledDate) return
-    
+
     const scheduledDateTime = new Date(`${formData.scheduledDate}T${formData.scheduledTime || '09:00'}`)
-    
+
     onUpdateActivity(editingActivity.id, {
       title: formData.title,
       description: formData.description,
@@ -202,7 +202,7 @@ export function ActivityTracker({
       outcome: formData.outcome,
       priority: formData.priority
     })
-    
+
     setEditingActivity(null)
     resetForm()
   }
@@ -275,7 +275,7 @@ export function ActivityTracker({
             <div className="text-2xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Due Today</CardTitle>
@@ -285,7 +285,7 @@ export function ActivityTracker({
             <div className="text-2xl font-bold text-blue-600">{stats.today}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Overdue</CardTitle>
@@ -295,7 +295,7 @@ export function ActivityTracker({
             <div className="text-2xl font-bold text-red-600">{stats.overdue}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Completed</CardTitle>
@@ -305,7 +305,7 @@ export function ActivityTracker({
             <div className="text-2xl font-bold text-green-600">{stats.completed}</div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Pending</CardTitle>
@@ -330,7 +330,7 @@ export function ActivityTracker({
             />
           </div>
         </div>
-        
+
         <div className="flex gap-2">
           <Select value={selectedLead} onValueChange={setSelectedLead}>
             <SelectTrigger className="w-[180px]">
@@ -340,12 +340,12 @@ export function ActivityTracker({
               <SelectItem value="all">All Leads</SelectItem>
               {leads.map(lead => (
                 <SelectItem key={lead.id} value={lead.id}>
-                  {lead.name}
+                  {lead.firstName} {lead.lastName}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          
+
           <Select value={selectedType} onValueChange={setSelectedType}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Type" />
@@ -359,7 +359,7 @@ export function ActivityTracker({
               ))}
             </SelectContent>
           </Select>
-          
+
           <Select value={selectedStatus} onValueChange={setSelectedStatus}>
             <SelectTrigger className="w-[140px]">
               <SelectValue placeholder="Status" />
@@ -371,7 +371,7 @@ export function ActivityTracker({
               <SelectItem value="overdue">Overdue</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button onClick={() => setIsAddDialogOpen(true)}>
@@ -386,7 +386,7 @@ export function ActivityTracker({
                   Schedule a new activity for a lead
                 </DialogDescription>
               </DialogHeader>
-              
+
               <div className="grid gap-4 py-4">
                 <div className="grid gap-2">
                   <Label htmlFor="lead">Lead</Label>
@@ -397,13 +397,13 @@ export function ActivityTracker({
                     <SelectContent>
                       {leads.map(lead => (
                         <SelectItem key={lead.id} value={lead.id}>
-                          {lead.name} - {lead.company}
+                          {lead.firstName} {lead.lastName} - {lead.company}
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="type">Activity Type</Label>
                   <Select value={formData.type} onValueChange={(value: Activity['type']) => setFormData(prev => ({ ...prev, type: value }))}>
@@ -419,7 +419,7 @@ export function ActivityTracker({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="title">Title</Label>
                   <Input
@@ -429,7 +429,7 @@ export function ActivityTracker({
                     placeholder="Activity title"
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="description">Description</Label>
                   <Textarea
@@ -440,7 +440,7 @@ export function ActivityTracker({
                     rows={3}
                   />
                 </div>
-                
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label htmlFor="date">Date</Label>
@@ -451,7 +451,7 @@ export function ActivityTracker({
                       onChange={(e) => setFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
                     />
                   </div>
-                  
+
                   <div className="grid gap-2">
                     <Label htmlFor="time">Time</Label>
                     <Input
@@ -462,7 +462,7 @@ export function ActivityTracker({
                     />
                   </div>
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="priority">Priority</Label>
                   <Select value={formData.priority} onValueChange={(value: 'low' | 'medium' | 'high') => setFormData(prev => ({ ...prev, priority: value }))}>
@@ -476,7 +476,7 @@ export function ActivityTracker({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div className="flex items-center space-x-2">
                   <Checkbox
                     id="completed"
@@ -485,7 +485,7 @@ export function ActivityTracker({
                   />
                   <Label htmlFor="completed">Mark as completed</Label>
                 </div>
-                
+
                 {formData.completed && (
                   <div className="grid gap-2">
                     <Label htmlFor="outcome">Outcome</Label>
@@ -504,7 +504,7 @@ export function ActivityTracker({
                   </div>
                 )}
               </div>
-              
+
               <DialogFooter>
                 <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                   Cancel
@@ -526,7 +526,7 @@ export function ActivityTracker({
           <TabsTrigger value="overdue">Overdue</TabsTrigger>
           <TabsTrigger value="completed">Completed</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="all" className="space-y-4">
           {filteredActivities.length === 0 ? (
             <Card>
@@ -541,7 +541,7 @@ export function ActivityTracker({
                 const lead = leads.find(l => l.id === activity.leadId)
                 const Icon = getActivityIcon(activity.type)
                 const isOverdue = !activity.completed && isPast(activity.scheduledDate)
-                
+
                 return (
                   <Card key={activity.id} className={`${isOverdue ? 'border-red-200 bg-red-50' : ''}`}>
                     <CardContent className="p-4">
@@ -550,7 +550,7 @@ export function ActivityTracker({
                           <div className={`p-2 rounded-full ${getActivityColor(activity.type)} text-white`}>
                             <Icon className="h-4 w-4" />
                           </div>
-                          
+
                           <div className="flex-1">
                             <div className="flex items-center space-x-2">
                               <h4 className="font-medium">{activity.title}</h4>
@@ -568,28 +568,28 @@ export function ActivityTracker({
                                 </Badge>
                               )}
                             </div>
-                            
+
                             <p className="text-sm text-muted-foreground mt-1">
                               {activity.description}
                             </p>
-                            
+
                             <div className="flex items-center space-x-4 mt-2 text-sm text-muted-foreground">
                               <div className="flex items-center space-x-1">
                                 <User className="h-3 w-3" />
-                                <span>{lead?.name} - {lead?.company}</span>
+                                <span>{lead?.firstName} {lead?.lastName} - {lead?.company}</span>
                               </div>
-                              
+
                               <div className="flex items-center space-x-1">
                                 <Calendar className="h-3 w-3" />
                                 <span>{formatActivityDate(activity.scheduledDate)}</span>
                               </div>
-                              
+
                               <div className="flex items-center space-x-1">
                                 <Clock className="h-3 w-3" />
                                 <span>{format(activity.scheduledDate, 'h:mm a')}</span>
                               </div>
                             </div>
-                            
+
                             {activity.outcome && (
                               <div className="mt-2">
                                 <Badge variant="secondary">
@@ -599,7 +599,7 @@ export function ActivityTracker({
                             )}
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center space-x-2">
                           <Button
                             variant="outline"
@@ -608,7 +608,7 @@ export function ActivityTracker({
                           >
                             Edit
                           </Button>
-                          
+
                           <Button
                             variant="outline"
                             size="sm"
@@ -625,13 +625,13 @@ export function ActivityTracker({
             </div>
           )}
         </TabsContent>
-        
+
         <TabsContent value="upcoming">
           <div className="space-y-4">
             {upcomingActivities.map(activity => {
               const lead = leads.find(l => l.id === activity.leadId)
               const Icon = getActivityIcon(activity.type)
-              
+
               return (
                 <Card key={activity.id}>
                   <CardContent className="p-4">
@@ -639,14 +639,14 @@ export function ActivityTracker({
                       <div className={`p-2 rounded-full ${getActivityColor(activity.type)} text-white`}>
                         <Icon className="h-4 w-4" />
                       </div>
-                      
+
                       <div className="flex-1">
                         <h4 className="font-medium">{activity.title}</h4>
                         <p className="text-sm text-muted-foreground">
-                          {lead?.name} - {formatActivityDate(activity.scheduledDate)} at {format(activity.scheduledDate, 'h:mm a')}
+                          {lead?.firstName} {lead?.lastName} - {formatActivityDate(activity.scheduledDate)} at {format(activity.scheduledDate, 'h:mm a')}
                         </p>
                       </div>
-                      
+
                       <Badge variant="outline" className={`${getPriorityColor(activity.priority)} text-white`}>
                         {activity.priority}
                       </Badge>
@@ -657,13 +657,13 @@ export function ActivityTracker({
             })}
           </div>
         </TabsContent>
-        
+
         <TabsContent value="overdue">
           <div className="space-y-4">
             {overdueActivities.map(activity => {
               const lead = leads.find(l => l.id === activity.leadId)
               const Icon = getActivityIcon(activity.type)
-              
+
               return (
                 <Card key={activity.id} className="border-red-200 bg-red-50">
                   <CardContent className="p-4">
@@ -671,17 +671,17 @@ export function ActivityTracker({
                       <div className={`p-2 rounded-full ${getActivityColor(activity.type)} text-white`}>
                         <Icon className="h-4 w-4" />
                       </div>
-                      
+
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <h4 className="font-medium">{activity.title}</h4>
                           <Badge variant="destructive">Overdue</Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {lead?.name} - Due {format(activity.scheduledDate, 'MMM d, yyyy')}
+                          {lead?.firstName} {lead?.lastName} - Due {format(activity.scheduledDate, 'MMM d, yyyy')}
                         </p>
                       </div>
-                      
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -696,13 +696,13 @@ export function ActivityTracker({
             })}
           </div>
         </TabsContent>
-        
+
         <TabsContent value="completed">
           <div className="space-y-4">
             {activities.filter(a => a.completed).map(activity => {
               const lead = leads.find(l => l.id === activity.leadId)
               const Icon = getActivityIcon(activity.type)
-              
+
               return (
                 <Card key={activity.id}>
                   <CardContent className="p-4">
@@ -710,7 +710,7 @@ export function ActivityTracker({
                       <div className={`p-2 rounded-full ${getActivityColor(activity.type)} text-white`}>
                         <Icon className="h-4 w-4" />
                       </div>
-                      
+
                       <div className="flex-1">
                         <div className="flex items-center space-x-2">
                           <h4 className="font-medium">{activity.title}</h4>
@@ -724,7 +724,7 @@ export function ActivityTracker({
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {lead?.name} - Completed {format(activity.scheduledDate, 'MMM d, yyyy')}
+                          {lead?.firstName} {lead?.lastName} - Completed {format(activity.scheduledDate, 'MMM d, yyyy')}
                         </p>
                       </div>
                     </div>
@@ -746,7 +746,7 @@ export function ActivityTracker({
                 Update activity details
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="grid gap-4 py-4">
               <div className="grid gap-2">
                 <Label htmlFor="edit-title">Title</Label>
@@ -756,7 +756,7 @@ export function ActivityTracker({
                   onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
                 />
               </div>
-              
+
               <div className="grid gap-2">
                 <Label htmlFor="edit-description">Description</Label>
                 <Textarea
@@ -766,7 +766,7 @@ export function ActivityTracker({
                   rows={3}
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="edit-date">Date</Label>
@@ -777,7 +777,7 @@ export function ActivityTracker({
                     onChange={(e) => setFormData(prev => ({ ...prev, scheduledDate: e.target.value }))}
                   />
                 </div>
-                
+
                 <div className="grid gap-2">
                   <Label htmlFor="edit-time">Time</Label>
                   <Input
@@ -788,7 +788,7 @@ export function ActivityTracker({
                   />
                 </div>
               </div>
-              
+
               <div className="flex items-center space-x-2">
                 <Checkbox
                   id="edit-completed"
@@ -797,7 +797,7 @@ export function ActivityTracker({
                 />
                 <Label htmlFor="edit-completed">Mark as completed</Label>
               </div>
-              
+
               {formData.completed && (
                 <div className="grid gap-2">
                   <Label htmlFor="edit-outcome">Outcome</Label>
@@ -816,7 +816,7 @@ export function ActivityTracker({
                 </div>
               )}
             </div>
-            
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditingActivity(null)}>
                 Cancel

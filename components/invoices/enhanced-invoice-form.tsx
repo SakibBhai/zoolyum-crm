@@ -10,12 +10,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { 
-  Plus, 
-  Trash2, 
-  Save, 
-  Send, 
-  Eye, 
+import {
+  Plus,
+  Trash2,
+  Save,
+  Send,
+  Eye,
   Calculator,
   FileText,
   Settings,
@@ -60,13 +60,13 @@ export function EnhancedInvoiceForm({
   const [clients, setClients] = useState<Client[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [templates, setTemplates] = useState<InvoiceTemplate[]>([])
+  const [dueDays, setDueDays] = useState(30)
   const [formData, setFormData] = useState<Partial<Invoice>>({
     invoiceNumber: '',
     clientId: '',
     projectId: '',
     issueDate: new Date().toISOString().split('T')[0],
     dueDate: '',
-    dueDays: 30,
     status: 'draft',
     lineItems: [],
     subtotal: 0,
@@ -95,7 +95,7 @@ export function EnhancedInvoiceForm({
     loadClients()
     loadProjects()
     loadTemplates()
-    
+
     // Generate invoice number if creating new invoice
     if (mode === 'create' && !formData.invoiceNumber) {
       generateInvoiceNumber()
@@ -109,22 +109,22 @@ export function EnhancedInvoiceForm({
     setFormData(prev => ({
       ...prev,
       subtotal: newCalculations.subtotal,
-      taxAmount: newCalculations.taxAmount,
-      discountAmount: newCalculations.discountAmount,
-      shippingTaxAmount: newCalculations.shippingTaxAmount,
+      taxAmount: newCalculations.totalTax,
+      discountAmount: newCalculations.totalDiscount,
+      shippingTaxAmount: newCalculations.shippingTax,
       total: newCalculations.total,
-      amountPaid: newCalculations.amountPaid,
-      amountDue: newCalculations.amountDue
+      amountPaid: 0,
+      amountDue: newCalculations.total
     }))
   }, [formData.lineItems, formData.taxRate, formData.discountRate, formData.discountType, formData.shippingAmount, formData.shippingTaxRate])
 
   useEffect(() => {
     // Calculate due date when issue date or due days change
-    if (formData.issueDate && formData.dueDays) {
-      const dueDate = InvoiceCalculator.calculateDueDate(formData.issueDate, formData.dueDays)
+    if (formData.issueDate && dueDays) {
+      const dueDate = InvoiceCalculator.calculateDueDate(formData.issueDate, dueDays)
       setFormData(prev => ({ ...prev, dueDate }))
     }
-  }, [formData.issueDate, formData.dueDays])
+  }, [formData.issueDate, dueDays])
 
   const loadClients = async () => {
     try {
@@ -156,7 +156,7 @@ export function EnhancedInvoiceForm({
       if (response.ok) {
         const data = await response.json()
         setTemplates(data)
-        
+
         // Set default template if none selected
         if (!formData.templateId && data.length > 0) {
           const defaultTemplate = data.find((t: InvoiceTemplate) => t.isDefault) || data[0]
@@ -193,11 +193,11 @@ export function EnhancedInvoiceForm({
       projectId: formData.projectId,
       taskId: '',
       category: '',
-      startTime: '',
-      endTime: '',
+      startDate: '',
+      endDate: '',
       notes: ''
     }
-    
+
     setFormData(prev => ({
       ...prev,
       lineItems: [...(prev.lineItems || []), newLineItem]
@@ -207,15 +207,15 @@ export function EnhancedInvoiceForm({
   const updateLineItem = (index: number, field: keyof LineItem, value: any) => {
     const updatedLineItems = [...(formData.lineItems || [])]
     const lineItem = { ...updatedLineItems[index] }
-    
+
     lineItem[field] = value as never
-    
+
     // Recalculate line item amount
     const lineCalculations = InvoiceCalculator.calculateLineItem(lineItem)
-    lineItem.amount = lineCalculations.amount
-    lineItem.taxAmount = lineCalculations.taxAmount
-    lineItem.discountAmount = lineCalculations.discountAmount
-    
+    lineItem.amount = lineCalculations.total
+    lineItem.taxAmount = lineCalculations.tax
+    lineItem.discountAmount = lineCalculations.discount
+
     updatedLineItems[index] = lineItem
     setFormData(prev => ({ ...prev, lineItems: updatedLineItems }))
   }
@@ -233,16 +233,16 @@ export function EnhancedInvoiceForm({
         ...formData,
         status: status || formData.status
       }
-      
+
       const url = mode === 'create' ? '/api/invoices' : `/api/invoices/${invoice?.id}`
       const method = mode === 'create' ? 'POST' : 'PUT'
-      
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(invoiceData)
       })
-      
+
       if (response.ok) {
         const savedInvoice = await response.json()
         toast({
@@ -317,7 +317,7 @@ export function EnhancedInvoiceForm({
                     placeholder="INV-001"
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="poNumber">PO Number</Label>
                   <Input
@@ -327,7 +327,7 @@ export function EnhancedInvoiceForm({
                     placeholder="Optional purchase order number"
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="issueDate">Issue Date</Label>
                   <Input
@@ -337,12 +337,12 @@ export function EnhancedInvoiceForm({
                     onChange={(e) => setFormData(prev => ({ ...prev, issueDate: e.target.value }))}
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="dueDays">Due Days</Label>
-                  <Select 
-                    value={formData.dueDays?.toString()} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, dueDays: parseInt(value) }))}
+                  <Select
+                    value={dueDays.toString()}
+                    onValueChange={(value) => setDueDays(parseInt(value))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -357,7 +357,7 @@ export function EnhancedInvoiceForm({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="dueDate">Due Date</Label>
                   <Input
@@ -367,13 +367,13 @@ export function EnhancedInvoiceForm({
                     onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="currency">Currency</Label>
-                  <Select 
-                    value={formData.currency} 
-                    onValueChange={(value) => setFormData(prev => ({ 
-                      ...prev, 
+                  <Select
+                    value={formData.currency}
+                    onValueChange={(value) => setFormData(prev => ({
+                      ...prev,
                       currency: value,
                       currencySymbol: value === 'USD' ? '$' : value === 'EUR' ? '€' : value === 'GBP' ? '£' : '$'
                     }))}
@@ -391,12 +391,12 @@ export function EnhancedInvoiceForm({
                   </Select>
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="clientId">Client</Label>
-                  <Select 
-                    value={formData.clientId} 
+                  <Select
+                    value={formData.clientId}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, clientId: value, projectId: '' }))}
                   >
                     <SelectTrigger>
@@ -411,11 +411,11 @@ export function EnhancedInvoiceForm({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="projectId">Project (Optional)</Label>
-                  <Select 
-                    value={formData.projectId} 
+                  <Select
+                    value={formData.projectId}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, projectId: value }))}
                     disabled={!formData.clientId}
                   >
@@ -433,11 +433,11 @@ export function EnhancedInvoiceForm({
                   </Select>
                 </div>
               </div>
-              
+
               <div>
                 <Label htmlFor="templateId">Invoice Template</Label>
-                <Select 
-                  value={formData.templateId} 
+                <Select
+                  value={formData.templateId}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, templateId: value }))}
                 >
                   <SelectTrigger>
@@ -504,8 +504,8 @@ export function EnhancedInvoiceForm({
                             />
                           </TableCell>
                           <TableCell>
-                            <Select 
-                              value={item.unit} 
+                            <Select
+                              value={item.unit}
                               onValueChange={(value) => updateLineItem(index, 'unit', value)}
                             >
                               <SelectTrigger className="w-24">
@@ -585,11 +585,11 @@ export function EnhancedInvoiceForm({
                     onChange={(e) => setFormData(prev => ({ ...prev, taxRate: parseFloat(e.target.value) || 0 }))}
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="discountType">Discount Type</Label>
-                  <Select 
-                    value={formData.discountType} 
+                  <Select
+                    value={formData.discountType}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, discountType: value as 'percentage' | 'fixed' }))}
                   >
                     <SelectTrigger>
@@ -601,7 +601,7 @@ export function EnhancedInvoiceForm({
                     </SelectContent>
                   </Select>
                 </div>
-                
+
                 <div>
                   <Label htmlFor="discountRate">
                     Discount {formData.discountType === 'percentage' ? '(%)' : `(${formData.currencySymbol})`}
@@ -615,7 +615,7 @@ export function EnhancedInvoiceForm({
                   />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="shippingAmount">Shipping Amount</Label>
@@ -627,7 +627,7 @@ export function EnhancedInvoiceForm({
                     onChange={(e) => setFormData(prev => ({ ...prev, shippingAmount: parseFloat(e.target.value) || 0 }))}
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="shippingTaxRate">Shipping Tax Rate (%)</Label>
                   <Input
@@ -639,11 +639,11 @@ export function EnhancedInvoiceForm({
                   />
                 </div>
               </div>
-              
+
               <div>
                 <Label htmlFor="paymentMethod">Payment Method</Label>
-                <Select 
-                  value={formData.paymentMethod} 
+                <Select
+                  value={formData.paymentMethod}
                   onValueChange={(value) => setFormData(prev => ({ ...prev, paymentMethod: value }))}
                 >
                   <SelectTrigger>
@@ -659,7 +659,7 @@ export function EnhancedInvoiceForm({
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div>
                 <Label htmlFor="notes">Notes</Label>
                 <Textarea
@@ -670,7 +670,7 @@ export function EnhancedInvoiceForm({
                   rows={3}
                 />
               </div>
-              
+
               <div>
                 <Label htmlFor="terms">Terms & Conditions</Label>
                 <Textarea
@@ -726,52 +726,52 @@ export function EnhancedInvoiceForm({
                   <span>Subtotal:</span>
                   <span>{InvoiceCalculator.formatCurrency(calculations.subtotal, formData.currency)}</span>
                 </div>
-                
-                {calculations.discountAmount > 0 && (
+
+                {calculations.totalDiscount > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount:</span>
-                    <span>-{InvoiceCalculator.formatCurrency(calculations.discountAmount, formData.currency)}</span>
+                    <span>-{InvoiceCalculator.formatCurrency(calculations.totalDiscount, formData.currency)}</span>
                   </div>
                 )}
-                
-                {calculations.taxAmount > 0 && (
+
+                {calculations.totalTax > 0 && (
                   <div className="flex justify-between">
                     <span>Tax:</span>
-                    <span>{InvoiceCalculator.formatCurrency(calculations.taxAmount, formData.currency)}</span>
+                    <span>{InvoiceCalculator.formatCurrency(calculations.totalTax, formData.currency)}</span>
                   </div>
                 )}
-                
+
                 {calculations.shippingAmount > 0 && (
                   <div className="flex justify-between">
                     <span>Shipping:</span>
                     <span>{InvoiceCalculator.formatCurrency(calculations.shippingAmount, formData.currency)}</span>
                   </div>
                 )}
-                
-                {calculations.shippingTaxAmount > 0 && (
+
+                {calculations.shippingTax > 0 && (
                   <div className="flex justify-between">
                     <span>Shipping Tax:</span>
-                    <span>{InvoiceCalculator.formatCurrency(calculations.shippingTaxAmount, formData.currency)}</span>
+                    <span>{InvoiceCalculator.formatCurrency(calculations.shippingTax, formData.currency)}</span>
                   </div>
                 )}
-                
+
                 <Separator />
-                
+
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total:</span>
                   <span>{InvoiceCalculator.formatCurrency(calculations.total, formData.currency)}</span>
                 </div>
-                
-                {calculations.amountPaid > 0 && (
+
+                {formData.amountPaid && formData.amountPaid > 0 && (
                   <>
                     <div className="flex justify-between text-green-600">
                       <span>Amount Paid:</span>
-                      <span>{InvoiceCalculator.formatCurrency(calculations.amountPaid, formData.currency)}</span>
+                      <span>{InvoiceCalculator.formatCurrency(formData.amountPaid, formData.currency)}</span>
                     </div>
-                    
+
                     <div className="flex justify-between font-medium">
                       <span>Amount Due:</span>
-                      <span>{InvoiceCalculator.formatCurrency(calculations.amountDue, formData.currency)}</span>
+                      <span>{InvoiceCalculator.formatCurrency((formData.amountDue || 0), formData.currency)}</span>
                     </div>
                   </>
                 )}
@@ -788,9 +788,9 @@ export function EnhancedInvoiceForm({
               <div className="space-y-3">
                 <div>
                   <Label htmlFor="status">Invoice Status</Label>
-                  <Select 
-                    value={formData.status} 
-                    onValueChange={(value) => setFormData(prev => ({ ...prev, status: value }))}
+                  <Select
+                    value={formData.status}
+                    onValueChange={(value) => setFormData(prev => ({ ...prev, status: value as Invoice['status'] }))}
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -806,16 +806,15 @@ export function EnhancedInvoiceForm({
                     </SelectContent>
                   </Select>
                 </div>
-                
-                <Badge 
-                  className={`w-full justify-center ${
-                    formData.status === 'paid' ? 'bg-green-500' :
-                    formData.status === 'overdue' ? 'bg-red-500' :
-                    formData.status === 'sent' ? 'bg-blue-500' :
-                    'bg-gray-500'
-                  }`}
+
+                <Badge
+                  className={`w-full justify-center ${formData.status === 'paid' ? 'bg-green-500' :
+                      formData.status === 'overdue' ? 'bg-red-500' :
+                        formData.status === 'sent' ? 'bg-blue-500' :
+                          'bg-gray-500'
+                    }`}
                 >
-                  {formData.status?.charAt(0).toUpperCase() + formData.status?.slice(1)}
+                  {formData.status ? (formData.status.charAt(0).toUpperCase() + formData.status.slice(1)) : 'Draft'}
                 </Badge>
               </div>
             </CardContent>

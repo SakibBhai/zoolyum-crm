@@ -5,11 +5,12 @@ import { CheckCircle, Clock, AlertCircle, CircleDashed } from "lucide-react"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useProjectContext } from "@/contexts/project-context"
 import { cn } from "@/lib/utils"
+import type { Project } from "@/types/project"
 
 interface ProjectStatusSelectProps {
   projectId: string
-  currentStatus: string
-  onStatusChange?: (newStatus: string) => void
+  currentStatus: Project['status']
+  onStatusChange?: (newStatus: Project['status']) => void
   className?: string
   size?: "default" | "sm"
 }
@@ -30,7 +31,7 @@ export function ProjectStatusSelect({
     name: "Sarah Johnson",
   }
 
-  const handleStatusChange = (newStatus: string) => {
+  const handleStatusChange = (newStatus: Project['status']) => {
     setStatus(newStatus)
     updateProjectStatus(projectId, newStatus, currentUser.id, currentUser.name)
     if (onStatusChange) {

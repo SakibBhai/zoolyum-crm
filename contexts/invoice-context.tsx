@@ -44,7 +44,7 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
     // Calculate subtotal, tax amount, and total
     const subtotal = data.lineItems.reduce((sum, item) => sum + item.amount, 0)
     const taxAmount = (subtotal * data.taxRate) / 100
-    const total = subtotal + taxAmount - data.discount
+    const total = subtotal + taxAmount - (data.discountAmount || 0)
 
     const newInvoice: Invoice = {
       id: uuidv4(),
@@ -60,7 +60,7 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
       subtotal,
       taxRate: data.taxRate,
       taxAmount,
-      discount: data.discount,
+      discountAmount: data.discountAmount,
       total,
       notes: data.notes,
       terms: data.terms,
@@ -69,6 +69,14 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
       updatedAt: new Date().toISOString(),
       paymentMethod: data.paymentMethod,
       paymentDetails: data.paymentDetails,
+      payments: [],
+      amountPaid: 0,
+      amountDue: total,
+      emailHistory: [],
+      remindersSent: 0,
+      currency: 'USD',
+      currencySymbol: '$',
+      createdBy: 'system',
     }
 
     setInvoices((prev) => [...prev, newInvoice])
@@ -82,19 +90,19 @@ export function InvoiceProvider({ children }: { children: ReactNode }) {
     // Calculate new financial values if line items, tax rate, or discount changed
     let updatedInvoice = { ...invoices[invoiceIndex], ...data }
 
-    if (data.lineItems || data.taxRate !== undefined || data.discount !== undefined) {
+    if (data.lineItems || data.taxRate !== undefined || data.discountAmount !== undefined) {
       const subtotal = (data.lineItems || updatedInvoice.lineItems).reduce((sum, item) => sum + item.amount, 0)
       const taxRate = data.taxRate !== undefined ? data.taxRate : updatedInvoice.taxRate
-      const discount = data.discount !== undefined ? data.discount : updatedInvoice.discount
+      const discount = data.discountAmount !== undefined ? data.discountAmount : updatedInvoice.discountAmount
       const taxAmount = (subtotal * taxRate) / 100
-      const total = subtotal + taxAmount - discount
+      const total = subtotal + taxAmount - (discount || 0)
 
       updatedInvoice = {
         ...updatedInvoice,
         subtotal,
         taxRate,
         taxAmount,
-        discount,
+        discountAmount: discount,
         total,
         updatedAt: new Date().toISOString(),
       }

@@ -48,12 +48,12 @@ export const clientsService = {
   }) {
     try {
       const offset = (params.page - 1) * params.limit
-      
+
       // Build WHERE conditions
       let whereConditions = []
       let queryParams: any[] = []
       let paramIndex = 1
-      
+
       if (params.search) {
         whereConditions.push(`(
           name ILIKE $${paramIndex} OR 
@@ -64,32 +64,32 @@ export const clientsService = {
         queryParams.push(`%${params.search}%`)
         paramIndex++
       }
-      
+
       if (params.status && params.status !== 'all') {
         whereConditions.push(`status = $${paramIndex}`)
         queryParams.push(params.status)
         paramIndex++
       }
-      
+
       if (params.industry) {
         whereConditions.push(`industry ILIKE $${paramIndex}`)
         queryParams.push(`%${params.industry}%`)
         paramIndex++
       }
-      
-      const whereClause = whereConditions.length > 0 
+
+      const whereClause = whereConditions.length > 0
         ? `WHERE ${whereConditions.join(' AND ')}`
         : ''
-      
+
       // Validate sort column to prevent SQL injection
       const validSortColumns = ['name', 'created_at', 'updated_at', 'industry', 'status']
       const sortColumn = validSortColumns.includes(params.sortBy) ? params.sortBy : 'name'
       const sortDirection = params.sortOrder === 'desc' ? 'DESC' : 'ASC'
-      
+
       // For now, let's use a simpler approach without complex filtering
       const countResult = await sql`SELECT COUNT(*) as total FROM clients`
       const total = countResult[0]?.total || 0
-      
+
       // Get paginated results with basic sorting
       const clients = await sql`
         SELECT 
@@ -104,7 +104,7 @@ export const clientsService = {
         ORDER BY name ASC
         LIMIT ${params.limit} OFFSET ${offset}
       `
-      
+
       return {
         clients,
         total: parseInt(total.toString())
@@ -175,11 +175,11 @@ export const clientsService = {
     try {
       // First get the current client data
       const [currentClient] = await sql`SELECT * FROM clients WHERE id = ${id}`
-      
+
       if (!currentClient) {
         throw new Error("Client not found")
       }
-      
+
       // Merge the updates with current data
       const updatedData = {
         name: updates.name !== undefined ? updates.name : currentClient.name,
@@ -190,7 +190,7 @@ export const clientsService = {
         status: updates.status !== undefined ? updates.status : currentClient.status,
         notes: updates.notes !== undefined ? updates.notes : currentClient.notes,
       }
-      
+
       // Update with merged data
       const [updatedClient] = await sql`
         UPDATE clients 
@@ -246,7 +246,7 @@ export const projectsService = {
         LEFT JOIN clients c ON p.client_id = c.id
         ORDER BY p.created_at DESC
       `
-      
+
       // Transform the data to match the expected Project type
       return projects.map(project => ({
         ...project,
@@ -271,46 +271,50 @@ export const projectsService = {
   async create(project: any) {
     try {
       console.log("Creating project with data:", project)
-      
+
       const [newProject] = await sql`
         INSERT INTO projects (
           name, 
           description, 
           client_id, 
           status, 
+          priority,
+          type,
           start_date, 
           end_date,
           budget,
-          team_members,
-          is_recurring,
-          frequency,
-          recurrence_end
+          estimated_budget,
+          progress,
+          manager,
+          created_by
         )
         VALUES (
           ${project.name},
           ${project.description || ''},
           ${project.client_id || null},
           ${project.status || 'planning'},
+          ${project.priority || 'medium'},
+          ${project.type || 'general'},
           ${project.start_date || null},
           ${project.end_date || project.deadline || null},
+          ${parseFloat(project.budget) || 0},
           ${parseFloat(project.estimated_budget) || parseFloat(project.budget) || 0},
-          ${JSON.stringify(project.team_members || [])},
-          ${project.is_recurring || false},
-          ${project.frequency || null},
-          ${project.recurrence_end || null}
+          ${project.progress || 0},
+          ${project.manager || null},
+          ${project.created_by || null}
         )
         RETURNING *
       `
-      
+
       // Log project creation activity if logActivity method exists
       try {
         if (newProject) {
-          await this.logActivity(newProject.id, 'created', `Project "${project.name}" was created`, project.created_by || 'system');
+          await this.logActivity(newProject.id, 'created', `Project "${project.name}" was created`, project.created_by, 'System');
         }
       } catch (activityError) {
         console.warn('Could not log project creation activity:', activityError);
       }
-      
+
       return newProject
     } catch (error) {
       console.error("Error creating project:", error)
@@ -321,7 +325,7 @@ export const projectsService = {
   async update(id: string, updates: any, updatedBy?: string) {
     try {
       const oldProject = await this.getById(id);
-      
+
       const [updatedProject] = await sql`
         UPDATE projects 
         SET 
@@ -345,22 +349,22 @@ export const projectsService = {
         WHERE id = ${id}
         RETURNING *
       `
-      
+
       // Log status change activity
       if (oldProject && oldProject.status !== updates.status) {
         await this.logActivity(id, 'status_changed', `Project status changed from "${oldProject.status}" to "${updates.status}"`, updatedBy);
       }
-      
+
       // Log general update activity
       await this.logActivity(id, 'updated', `Project "${updates.name}" was updated`, updatedBy);
-      
+
       return updatedProject
     } catch (error) {
       console.error("Error updating project:", error)
       throw error
     }
   },
-  
+
   async delete(id: string) {
     try {
       await sql`DELETE FROM projects WHERE id = ${id}`
@@ -422,7 +426,7 @@ export const projectsService = {
           project_id, type, description, user_id, user_name, timestamp
         )
         VALUES (
-          ${projectId}, ${type}, ${description}, ${userId}, ${userName}, NOW()
+          ${projectId}, ${type}, ${description}, ${userId || null}, ${userName || null}, NOW()
         )
         RETURNING *
       `
@@ -452,18 +456,21 @@ export const projectsService = {
     try {
       const project = await this.getById(projectId);
       const teamMembers = project.team_members || [];
-      
+
       if (!teamMembers.find((member: any) => member.id === teamMemberId)) {
         const teamMember = await teamService.getById(teamMemberId);
-        teamMembers.push(teamMember);
-        
-        await sql`
-          UPDATE projects 
-          SET team_members = ${JSON.stringify(teamMembers)}, updated_at = NOW()
-          WHERE id = ${projectId}
-        `;
-        
-        await this.logActivity(projectId, 'team_member_added', `${teamMember.name} was added to the project`, addedBy);
+
+        if (teamMember) {
+          teamMembers.push(teamMember);
+
+          await sql`
+            UPDATE projects 
+            SET team_members = ${JSON.stringify(teamMembers)}, updated_at = NOW()
+            WHERE id = ${projectId}
+          `;
+
+          await this.logActivity(projectId, 'team_member_added', `${(teamMember as any).name} was added to the project`, addedBy);
+        }
       }
     } catch (error) {
       console.error("Error adding team member to project:", error)
@@ -476,16 +483,16 @@ export const projectsService = {
       const project = await this.getById(projectId);
       const teamMembers = project.team_members || [];
       const memberToRemove = teamMembers.find((member: any) => member.id === teamMemberId);
-      
+
       if (memberToRemove) {
         const updatedTeamMembers = teamMembers.filter((member: any) => member.id !== teamMemberId);
-        
+
         await sql`
           UPDATE projects 
           SET team_members = ${JSON.stringify(updatedTeamMembers)}, updated_at = NOW()
           WHERE id = ${projectId}
         `;
-        
+
         await this.logActivity(projectId, 'team_member_removed', `${memberToRemove.name} was removed from the project`, removedBy);
       }
     } catch (error) {
@@ -514,7 +521,7 @@ export const teamService = {
         WHERE tm.is_active = true
         ORDER BY tm.name ASC
       `
-      
+
       // Transform database response to match TypeScript interface
       return teamMembers.map(member => ({
         ...member,
@@ -541,10 +548,10 @@ export const teamService = {
   async create(teamMember: any) {
     try {
       console.log('Creating team member with data:', teamMember)
-      
+
       // Generate a unique employee_id if not provided
       const employeeId = teamMember.employee_id || `EMP-${Date.now().toString().slice(-6)}`
-      
+
       const [newTeamMember] = await sql`
         INSERT INTO team_members (
           name, role, department, bio, email, phone, location, 
@@ -581,7 +588,7 @@ export const teamService = {
       if (!currentMember) {
         throw new Error('Team member not found')
       }
-      
+
       // Handle emergency contact object if provided
       let emergencyContactUpdates = {}
       if (updates.emergencyContact) {
@@ -592,7 +599,7 @@ export const teamService = {
           emergency_contact_email: updates.emergencyContact.email
         }
       }
-      
+
       // Merge updates with current values, only updating provided fields
       const updatedData = {
         name: updates.name !== undefined ? updates.name : currentMember.name,
@@ -605,33 +612,33 @@ export const teamService = {
         location: updates.location !== undefined ? updates.location : currentMember.location,
         linkedin: updates.linkedin !== undefined ? updates.linkedin : currentMember.linkedin,
         twitter: updates.twitter !== undefined ? updates.twitter : currentMember.twitter,
-        avatar: (updates.avatar !== undefined || updates.avatar_url !== undefined) ? 
-                (updates.avatar || updates.avatar_url) : currentMember.avatar,
+        avatar: (updates.avatar !== undefined || updates.avatar_url !== undefined) ?
+          (updates.avatar || updates.avatar_url) : currentMember.avatar,
         salary: updates.salary !== undefined ? updates.salary : currentMember.salary,
-        employee_id: updates.employeeId !== undefined ? updates.employeeId : 
-                     (updates.employee_id !== undefined ? updates.employee_id : currentMember.employee_id),
+        employee_id: updates.employeeId !== undefined ? updates.employeeId :
+          (updates.employee_id !== undefined ? updates.employee_id : currentMember.employee_id),
         manager: updates.manager !== undefined ? updates.manager : currentMember.manager,
-        performance_rating: updates.performanceRating !== undefined ? updates.performanceRating : 
-                           (updates.performance_rating !== undefined ? updates.performance_rating : currentMember.performance_rating),
+        performance_rating: updates.performanceRating !== undefined ? updates.performanceRating :
+          (updates.performance_rating !== undefined ? updates.performance_rating : currentMember.performance_rating),
         emergency_contact_name: ('emergency_contact_name' in emergencyContactUpdates) ?
-                               emergencyContactUpdates.emergency_contact_name : 
-                               (updates.emergency_contact_name !== undefined ? updates.emergency_contact_name : currentMember.emergency_contact_name),
+          emergencyContactUpdates.emergency_contact_name :
+          (updates.emergency_contact_name !== undefined ? updates.emergency_contact_name : currentMember.emergency_contact_name),
         emergency_contact_relationship: ('emergency_contact_relationship' in emergencyContactUpdates) ?
-                                       emergencyContactUpdates.emergency_contact_relationship : 
-                                       (updates.emergency_contact_relationship !== undefined ? updates.emergency_contact_relationship : currentMember.emergency_contact_relationship),
+          emergencyContactUpdates.emergency_contact_relationship :
+          (updates.emergency_contact_relationship !== undefined ? updates.emergency_contact_relationship : currentMember.emergency_contact_relationship),
         emergency_contact_phone: ('emergency_contact_phone' in emergencyContactUpdates) ?
-                                emergencyContactUpdates.emergency_contact_phone : 
-                                (updates.emergency_contact_phone !== undefined ? updates.emergency_contact_phone : currentMember.emergency_contact_phone),
+          emergencyContactUpdates.emergency_contact_phone :
+          (updates.emergency_contact_phone !== undefined ? updates.emergency_contact_phone : currentMember.emergency_contact_phone),
         emergency_contact_email: ('emergency_contact_email' in emergencyContactUpdates) ?
-                                emergencyContactUpdates.emergency_contact_email : 
-                                (updates.emergency_contact_email !== undefined ? updates.emergency_contact_email : currentMember.emergency_contact_email),
-        is_active: (updates.isActive !== undefined || updates.is_active !== undefined) ? 
-                   (updates.isActive !== undefined ? updates.isActive : updates.is_active) : currentMember.is_active,
+          emergencyContactUpdates.emergency_contact_email :
+          (updates.emergency_contact_email !== undefined ? updates.emergency_contact_email : currentMember.emergency_contact_email),
+        is_active: (updates.isActive !== undefined || updates.is_active !== undefined) ?
+          (updates.isActive !== undefined ? updates.isActive : updates.is_active) : currentMember.is_active,
         status: updates.status !== undefined ? updates.status : currentMember.status
       }
-      
+
       console.log('Updating team member with data:', updatedData)
-      
+
       const [updatedTeamMember] = await sql`
         UPDATE team_members 
         SET 
@@ -660,12 +667,12 @@ export const teamService = {
         WHERE id = ${id}
         RETURNING *
       `
-      
+
       // Transform the database response to match the TypeScript interface
       const transformedMember = {
         ...updatedTeamMember,
-        skills: typeof updatedTeamMember.skills === 'string' ? 
-                JSON.parse(updatedTeamMember.skills) : updatedTeamMember.skills,
+        skills: typeof updatedTeamMember.skills === 'string' ?
+          JSON.parse(updatedTeamMember.skills) : updatedTeamMember.skills,
         emergencyContact: updatedTeamMember.emergency_contact_name ? {
           name: updatedTeamMember.emergency_contact_name,
           relationship: updatedTeamMember.emergency_contact_relationship,
@@ -676,7 +683,7 @@ export const teamService = {
         performanceRating: updatedTeamMember.performance_rating,
         joinDate: updatedTeamMember.created_at
       }
-      
+
       console.log('Successfully updated team member:', transformedMember)
       return transformedMember
     } catch (error) {
@@ -704,11 +711,11 @@ export const teamService = {
       const [teamMember] = await sql`
         SELECT * FROM team_members WHERE id = ${id}
       `
-      
+
       if (!teamMember) {
         return null
       }
-      
+
       // Transform database response to match TypeScript interface
       return {
         ...teamMember,
@@ -767,7 +774,7 @@ export const tasksService = {
   async create(task: any) {
     try {
       console.log("Creating task with data:", task)
-      
+
       const [newTask] = await sql`
         INSERT INTO tasks (
           title, description, project_id, assigned_to, priority, 
@@ -799,34 +806,34 @@ export const tasksService = {
     try {
       // First get the current task data to preserve existing values
       const [currentTask] = await sql`SELECT * FROM tasks WHERE id = ${id}`
-      
+
       if (!currentTask) {
         throw new Error("Task not found")
       }
-      
+
       // Map frontend field names to database field names and merge with current data
       const updatedData = {
-        title: updates.title !== undefined ? updates.title : 
-               (updates.name !== undefined ? updates.name : currentTask.title),
-        description: updates.description !== undefined ? updates.description : 
-                    (updates.details !== undefined ? updates.details : 
-                     (updates.brief !== undefined ? updates.brief : currentTask.description)),
-        project_id: updates.project_id !== undefined ? updates.project_id : 
-                   (updates.projectId !== undefined ? updates.projectId : currentTask.project_id),
-        assigned_to: updates.assigned_to !== undefined ? updates.assigned_to : 
-                    (updates.assignedTo !== undefined ? updates.assignedTo : 
-                     (updates.assignee_id !== undefined ? updates.assignee_id : currentTask.assigned_to)),
+        title: updates.title !== undefined ? updates.title :
+          (updates.name !== undefined ? updates.name : currentTask.title),
+        description: updates.description !== undefined ? updates.description :
+          (updates.details !== undefined ? updates.details :
+            (updates.brief !== undefined ? updates.brief : currentTask.description)),
+        project_id: updates.project_id !== undefined ? updates.project_id :
+          (updates.projectId !== undefined ? updates.projectId : currentTask.project_id),
+        assigned_to: updates.assigned_to !== undefined ? updates.assigned_to :
+          (updates.assignedTo !== undefined ? updates.assignedTo :
+            (updates.assignee_id !== undefined ? updates.assignee_id : currentTask.assigned_to)),
         priority: updates.priority !== undefined ? updates.priority : currentTask.priority,
         status: updates.status !== undefined ? updates.status : currentTask.status,
-        due_date: updates.due_date !== undefined ? updates.due_date : 
-                 (updates.dueDate !== undefined ? updates.dueDate : currentTask.due_date),
+        due_date: updates.due_date !== undefined ? updates.due_date :
+          (updates.dueDate !== undefined ? updates.dueDate : currentTask.due_date),
         estimated_hours: updates.estimated_hours !== undefined ? updates.estimated_hours : currentTask.estimated_hours,
         actual_hours: updates.actual_hours !== undefined ? updates.actual_hours : currentTask.actual_hours,
-        is_content_related: updates.is_content_related !== undefined ? updates.is_content_related : 
-                           (updates.category === 'content' ? true : currentTask.is_content_related),
+        is_content_related: updates.is_content_related !== undefined ? updates.is_content_related :
+          (updates.category === 'content' ? true : currentTask.is_content_related),
         dependencies: updates.dependencies !== undefined ? updates.dependencies : currentTask.dependencies
       }
-      
+
       const [updatedTask] = await sql`
         UPDATE tasks 
         SET 
@@ -918,42 +925,42 @@ export const transactionsService = {
       const page = params?.page || 1
       const limit = params?.limit || 50
       const offset = (page - 1) * limit
-      
+
       let whereConditions = []
       let queryParams: any[] = []
-      
+
       if (params?.type && params.type !== 'all') {
         whereConditions.push(`type = '${params.type}'`)
       }
-      
+
       if (params?.category) {
         whereConditions.push(`category ILIKE '%${params.category}%'`)
       }
-      
+
       if (params?.dateFrom) {
         whereConditions.push(`date >= '${params.dateFrom}'`)
       }
-      
+
       if (params?.dateTo) {
         whereConditions.push(`date <= '${params.dateTo}'`)
       }
-      
+
       if (params?.projectId) {
         whereConditions.push(`project_id = '${params.projectId}'`)
       }
-      
+
       if (params?.clientId) {
         whereConditions.push(`client_id = '${params.clientId}'`)
       }
-      
-      const whereClause = whereConditions.length > 0 
+
+      const whereClause = whereConditions.length > 0
         ? `WHERE ${whereConditions.join(' AND ')}`
         : ''
-      
+
       const validSortColumns = ['date', 'amount', 'category', 'type', 'created_at']
       const sortColumn = validSortColumns.includes(params?.sortBy || '') ? params?.sortBy : 'date'
       const sortDirection = params?.sortOrder === 'asc' ? 'ASC' : 'DESC'
-      
+
       const transactions = await sql`
         SELECT 
           t.*,
@@ -963,16 +970,16 @@ export const transactionsService = {
         LEFT JOIN projects p ON t.project_id = p.id
         LEFT JOIN clients c ON t.client_id = c.id
         ${whereClause ? sql.unsafe(whereClause) : sql``}
-        ORDER BY ${sql.unsafe(sortColumn)} ${sql.unsafe(sortDirection)}
+        ORDER BY ${sql.unsafe(sortColumn as string)} ${sql.unsafe(sortDirection as string)}
         LIMIT ${limit} OFFSET ${offset}
       `
-      
+
       const countResult = await sql`
         SELECT COUNT(*) as total 
         FROM transactions t
         ${whereClause ? sql.unsafe(whereClause) : sql``}
       `
-      
+
       return {
         transactions,
         total: parseInt(countResult[0]?.total?.toString() || '0'),
@@ -1034,11 +1041,11 @@ export const transactionsService = {
   async update(id: string, updates: any) {
     try {
       const [currentTransaction] = await sql`SELECT * FROM transactions WHERE id = ${id}`
-      
+
       if (!currentTransaction) {
         throw new Error("Transaction not found")
       }
-      
+
       const updatedData = {
         type: updates.type !== undefined ? updates.type : currentTransaction.type,
         amount: updates.amount !== undefined ? updates.amount : currentTransaction.amount,
@@ -1057,7 +1064,7 @@ export const transactionsService = {
         tags: updates.tags !== undefined ? updates.tags : currentTransaction.tags,
         status: updates.status !== undefined ? updates.status : currentTransaction.status
       }
-      
+
       const [updatedTransaction] = await sql`
         UPDATE transactions 
         SET 
@@ -1124,25 +1131,25 @@ export const transactionsService = {
   }) {
     try {
       let whereConditions = ["status = 'completed'"]
-      
+
       if (params?.dateFrom) {
         whereConditions.push(`date >= '${params.dateFrom}'`)
       }
-      
+
       if (params?.dateTo) {
         whereConditions.push(`date <= '${params.dateTo}'`)
       }
-      
+
       if (params?.projectId) {
         whereConditions.push(`project_id = '${params.projectId}'`)
       }
-      
+
       if (params?.clientId) {
         whereConditions.push(`client_id = '${params.clientId}'`)
       }
-      
+
       const whereClause = `WHERE ${whereConditions.join(' AND ')}`
-      
+
       const summary = await sql`
         SELECT 
           SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
@@ -1153,7 +1160,7 @@ export const transactionsService = {
         FROM transactions
         ${sql.unsafe(whereClause)}
       `
-      
+
       return summary[0] || {
         total_income: 0,
         total_expenses: 0,
@@ -1176,7 +1183,7 @@ export const transactionsService = {
   async getMonthlyTotals(year?: number) {
     try {
       const yearFilter = year ? `WHERE EXTRACT(YEAR FROM date) = ${year}` : ''
-      
+
       const monthlyData = await sql`
         SELECT 
           DATE_TRUNC('month', date) as month,
@@ -1189,7 +1196,7 @@ export const transactionsService = {
         ORDER BY month DESC
         LIMIT 12
       `
-      
+
       return monthlyData
     } catch (error) {
       console.error("Error fetching monthly totals:", error)
@@ -1200,7 +1207,7 @@ export const transactionsService = {
   async getCategories(type?: 'income' | 'expense') {
     try {
       const typeFilter = type ? `WHERE type = '${type}'` : ''
-      
+
       const categories = await sql`
         SELECT 
           category,
@@ -1212,7 +1219,7 @@ export const transactionsService = {
         GROUP BY category, type
         ORDER BY total_amount DESC
       `
-      
+
       return categories
     } catch (error) {
       console.error("Error fetching categories:", error)
@@ -1245,7 +1252,7 @@ export const invoicesService = {
     try {
       // Generate invoice number
       const invoiceNumber = `INV-${Date.now().toString().slice(-8)}`
-      
+
       const [newInvoice] = await sql`
         INSERT INTO invoices (
           invoice_number, client_id, project_id, amount, tax, 

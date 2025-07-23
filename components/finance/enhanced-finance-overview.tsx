@@ -6,13 +6,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { 
-  Plus, 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Calendar, 
-  Filter, 
+import {
+  Plus,
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Calendar,
+  Filter,
   Download,
   Sparkles,
   Globe,
@@ -58,7 +58,7 @@ const defaultFilters: FilterOptions = {
 
 export function EnhancedFinanceOverview() {
   const { toast } = useToast()
-  
+
   // API-based transaction management
   const {
     transactions,
@@ -82,10 +82,10 @@ export function EnhancedFinanceOverview() {
     pagination: { page: 1, limit: 50 }, // Get more transactions for overview
     sort: { sortBy: 'date', sortOrder: 'desc' }
   })
-  
+
   // Enhanced transactions (still using localStorage for now)
   const [enhancedTransactions, setEnhancedTransactions] = useState<EnhancedTransaction[]>([])
-  
+
   // UI state
   const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEnhancedForm, setShowEnhancedForm] = useState(false)
@@ -111,7 +111,7 @@ export function EnhancedFinanceOverview() {
   useEffect(() => {
     localStorage.setItem('enhanced-finance-transactions', JSON.stringify(enhancedTransactions))
   }, [enhancedTransactions])
-  
+
   // Fetch financial summary and categories on mount
   useEffect(() => {
     fetchFinancialSummary()
@@ -127,7 +127,7 @@ export function EnhancedFinanceOverview() {
       date: transaction.date || new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString()
     })
-    
+
     if (result) {
       setShowTransactionForm(false)
       // Refresh financial summary
@@ -138,13 +138,13 @@ export function EnhancedFinanceOverview() {
   const handleAddEnhancedTransaction = (transaction: Omit<EnhancedTransaction, 'id' | 'createdAt'>) => {
     // Generate a simple UUID-like string for compatibility
     const generateId = () => {
-      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
         const r = Math.random() * 16 | 0;
         const v = c === 'x' ? r : (r & 0x3 | 0x8);
         return v.toString(16);
       });
     };
-    
+
     const newTransaction: EnhancedTransaction = {
       ...transaction,
       id: generateId(),
@@ -177,7 +177,7 @@ export function EnhancedFinanceOverview() {
 
   const handleExportData = () => {
     const dataToExport = activeView === 'standard' ? transactions : enhancedTransactions
-    
+
     // Include financial summary for standard view
     const exportData = activeView === 'standard' ? {
       transactions: dataToExport,
@@ -189,7 +189,7 @@ export function EnhancedFinanceOverview() {
       exportDate: new Date().toISOString(),
       totalTransactions: dataToExport.length
     }
-    
+
     const dataStr = JSON.stringify(exportData, null, 2)
     const dataBlob = new Blob([dataStr], { type: 'application/json' })
     const url = URL.createObjectURL(dataBlob)
@@ -200,7 +200,7 @@ export function EnhancedFinanceOverview() {
     link.click()
     document.body.removeChild(link)
     URL.revokeObjectURL(url)
-    
+
     toast({
       title: "Data Exported",
       description: `Your ${activeView} financial data has been exported successfully.`,
@@ -209,18 +209,18 @@ export function EnhancedFinanceOverview() {
 
   // Calculate summary statistics for current view
   const currentTransactions = activeView === 'standard' ? (transactions || []) : (enhancedTransactions || [])
-  
+
   // Use API financial summary for standard view, calculate for enhanced view
-  const totalIncome = activeView === 'standard' && financialSummary 
-    ? financialSummary.totalIncome 
+  const totalIncome = activeView === 'standard' && financialSummary
+    ? financialSummary.totalIncome
     : currentTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
-  
-  const totalExpenses = activeView === 'standard' && financialSummary 
-    ? financialSummary.totalExpenses 
+
+  const totalExpenses = activeView === 'standard' && financialSummary
+    ? financialSummary.totalExpenses
     : currentTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)
-  
-  const netBalance = activeView === 'standard' && financialSummary 
-    ? financialSummary.netAmount 
+
+  const netBalance = activeView === 'standard' && financialSummary
+    ? financialSummary.netAmount
     : totalIncome - totalExpenses
 
   // Enhanced transaction statistics
@@ -245,7 +245,7 @@ export function EnhancedFinanceOverview() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-        
+
         <div className="flex gap-2">
           <Button
             variant="outline"
@@ -271,7 +271,7 @@ export function EnhancedFinanceOverview() {
         <Alert>
           <Sparkles className="h-4 w-4" />
           <AlertDescription>
-            You're viewing the enterprise-grade financial management system with advanced features like multi-currency support, 
+            You're viewing the enterprise-grade financial management system with advanced features like multi-currency support,
             AI categorization, recurring transactions, and document attachments.
           </AlertDescription>
         </Alert>
@@ -286,7 +286,7 @@ export function EnhancedFinanceOverview() {
           </div>
         </Alert>
       )}
-      
+
       {/* Error State */}
       {error && activeView === 'standard' && (
         <Alert variant="destructive">
@@ -317,7 +317,7 @@ export function EnhancedFinanceOverview() {
             )}
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
@@ -339,7 +339,7 @@ export function EnhancedFinanceOverview() {
             )}
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Net Balance</CardTitle>
@@ -353,9 +353,8 @@ export function EnhancedFinanceOverview() {
               </div>
             ) : (
               <>
-                <div className={`text-2xl font-bold ${
-                  netBalance >= 0 ? 'text-green-600' : 'text-red-600'
-                }`}>
+                <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
                   ৳{(netBalance ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
                 <p className="text-xs text-muted-foreground">
@@ -365,7 +364,7 @@ export function EnhancedFinanceOverview() {
             )}
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
@@ -447,7 +446,7 @@ export function EnhancedFinanceOverview() {
       <div className="flex gap-4">
         {activeView === 'standard' ? (
           <>
-            <Button 
+            <Button
               onClick={() => setShowTransactionForm(true)}
               disabled={creating}
             >
@@ -498,15 +497,15 @@ export function EnhancedFinanceOverview() {
       )}
 
       {/* Error Display */}
-       {error && activeView === 'standard' && (
-         <Alert variant="destructive" className="mb-6">
-           <AlertCircle className="h-4 w-4" />
-           <AlertTitle>Error</AlertTitle>
-           <AlertDescription>
-             {error}
-           </AlertDescription>
-         </Alert>
-       )}
+      {error && activeView === 'standard' && (
+        <Alert variant="destructive" className="mb-6">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>
+            {error}
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
@@ -516,14 +515,14 @@ export function EnhancedFinanceOverview() {
           <TabsTrigger value="analytics">Analytics</TabsTrigger>
           <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-6 md:grid-cols-2">
             <FinancialSummary transactions={activeView === 'standard' ? transactions : enhancedTransactions} />
             <FinancialCharts transactions={activeView === 'standard' ? transactions : enhancedTransactions} />
           </div>
         </TabsContent>
-        
+
         <TabsContent value="transactions">
           {loading && activeView === 'standard' ? (
             <Card>
@@ -549,22 +548,20 @@ export function EnhancedFinanceOverview() {
           ) : (
             <TransactionList
               transactions={activeView === 'standard' ? transactions : enhancedTransactions}
-              onEdit={activeView === 'standard' ? 
+              onEdit={activeView === 'standard' ?
                 (t) => { setEditingTransaction(t as Transaction); setShowTransactionForm(true); } :
                 (t) => { setEditingEnhancedTransaction(t as EnhancedTransaction); setShowEnhancedForm(true); }
               }
               onDelete={handleDeleteTransaction}
               filters={filters}
-              loading={loading && activeView === 'standard'}
-              deleting={deleting}
             />
           )}
         </TabsContent>
-        
+
         <TabsContent value="analytics">
           <FinancialCharts transactions={activeView === 'standard' ? transactions : enhancedTransactions} />
         </TabsContent>
-        
+
         <TabsContent value="reports">
           <MonthlyAudit transactions={activeView === 'standard' ? transactions : enhancedTransactions} />
         </TabsContent>
@@ -574,7 +571,7 @@ export function EnhancedFinanceOverview() {
       {showTransactionForm && (
         <TransactionForm
           transaction={editingTransaction}
-          onSubmit={editingTransaction ? 
+          onSubmit={editingTransaction ?
             async (updatedTransaction) => {
               const success = await updateTransaction(editingTransaction.id, {
                 type: updatedTransaction.type,
@@ -583,7 +580,7 @@ export function EnhancedFinanceOverview() {
                 description: updatedTransaction.description,
                 date: updatedTransaction.date
               })
-              
+
               if (success) {
                 setEditingTransaction(null)
                 setShowTransactionForm(false)
@@ -605,10 +602,10 @@ export function EnhancedFinanceOverview() {
       {showEnhancedForm && (
         <EnhancedTransactionForm
           transaction={editingEnhancedTransaction}
-          onSubmit={editingEnhancedTransaction ? 
+          onSubmit={editingEnhancedTransaction ?
             (updatedTransaction) => {
-              setEnhancedTransactions(prev => prev.map(t => 
-                t.id === editingEnhancedTransaction.id 
+              setEnhancedTransactions(prev => prev.map(t =>
+                t.id === editingEnhancedTransaction.id
                   ? { ...updatedTransaction, id: editingEnhancedTransaction.id, createdAt: editingEnhancedTransaction.createdAt }
                   : t
               ))

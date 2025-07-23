@@ -56,7 +56,7 @@ export function LeadAnalytics({ leads, activities }: LeadAnalyticsProps) {
   const analytics = useMemo(() => {
     const now = new Date()
     const sixMonthsAgo = subMonths(now, 6)
-    
+
     // Monthly lead creation data
     const monthlyData = eachMonthOfInterval({
       start: sixMonthsAgo,
@@ -64,15 +64,16 @@ export function LeadAnalytics({ leads, activities }: LeadAnalyticsProps) {
     }).map(month => {
       const monthStart = startOfMonth(month)
       const monthEnd = endOfMonth(month)
-      
-      const monthLeads = leads.filter(lead => 
-        lead.createdAt >= monthStart && lead.createdAt <= monthEnd
-      )
-      
+
+      const monthLeads = leads.filter(lead => {
+        const leadDate = new Date(lead.createdAt)
+        return leadDate >= monthStart && leadDate <= monthEnd
+      })
+
       const closedWon = monthLeads.filter(lead => lead.status === 'closed-won')
       const totalValue = monthLeads.reduce((sum, lead) => sum + lead.value, 0)
       const wonValue = closedWon.reduce((sum, lead) => sum + lead.value, 0)
-      
+
       return {
         month: format(month, 'MMM yyyy'),
         leads: monthLeads.length,
@@ -119,14 +120,15 @@ export function LeadAnalytics({ leads, activities }: LeadAnalyticsProps) {
     // Sales rep performance
     const repPerformance = Object.entries(
       leads.reduce((acc, lead) => {
-        if (!acc[lead.assignedTo]) {
-          acc[lead.assignedTo] = { total: 0, won: 0, value: 0, avgScore: 0 }
+        const rep = lead.assignedTo || 'Unassigned'
+        if (!acc[rep]) {
+          acc[rep] = { total: 0, won: 0, value: 0, avgScore: 0 }
         }
-        acc[lead.assignedTo].total += 1
-        acc[lead.assignedTo].avgScore += lead.leadScore
+        acc[rep].total += 1
+        acc[rep].avgScore += lead.leadScore
         if (lead.status === 'closed-won') {
-          acc[lead.assignedTo].won += 1
-          acc[lead.assignedTo].value += lead.value
+          acc[rep].won += 1
+          acc[rep].value += lead.value
         }
         return acc
       }, {} as Record<string, { total: number; won: number; value: number; avgScore: number }>)
@@ -147,7 +149,7 @@ export function LeadAnalytics({ leads, activities }: LeadAnalyticsProps) {
       { range: '61-80', min: 61, max: 80 },
       { range: '81-100', min: 81, max: 100 }
     ]
-    
+
     const scoreDistribution = scoreRanges.map(({ range, min, max }) => {
       const count = leads.filter(lead => lead.leadScore >= min && lead.leadScore <= max).length
       return { range, count }
@@ -226,7 +228,7 @@ export function LeadAnalytics({ leads, activities }: LeadAnalyticsProps) {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Conversion Rate</CardTitle>
@@ -241,7 +243,7 @@ export function LeadAnalytics({ leads, activities }: LeadAnalyticsProps) {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Deal Size</CardTitle>
@@ -256,7 +258,7 @@ export function LeadAnalytics({ leads, activities }: LeadAnalyticsProps) {
             </p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Avg Lead Score</CardTitle>
@@ -330,7 +332,7 @@ export function LeadAnalytics({ leads, activities }: LeadAnalyticsProps) {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) => `${name} ${((percent || 0) * 100).toFixed(0)}%`}
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"

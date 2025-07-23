@@ -97,10 +97,10 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
               </span>
             </div>
           )}
-          {invoice.discount > 0 && (
+          {(invoice.discountAmount || 0) > 0 && (
             <div className="flex justify-between py-2">
               <span className="font-medium">Discount:</span>
-              <span>-${invoice.discount.toFixed(2)}</span>
+              <span>-${(invoice.discountAmount || 0).toFixed(2)}</span>
             </div>
           )}
           <div className="flex justify-between py-2 border-t border-gray-300 font-bold">
@@ -109,7 +109,7 @@ export function InvoicePreview({ invoice }: InvoicePreviewProps) {
               $
               {(
                 invoice.lineItems.reduce((sum, item) => sum + item.quantity * item.rate, 0) * (1 + invoice.taxRate) -
-                invoice.discount
+                (invoice.discountAmount || 0)
               ).toFixed(2)}
             </span>
           </div>

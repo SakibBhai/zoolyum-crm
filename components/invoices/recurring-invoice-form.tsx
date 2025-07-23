@@ -17,7 +17,7 @@ import { DatePicker } from "@/components/ui/date-picker"
 import { format, addDays } from "date-fns"
 import { Trash2, Plus, AlertCircle } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
-import type { InvoiceLineItem } from "@/types/invoice"
+import type { LineItem } from "@/types/invoice"
 import type { RecurringInvoiceFormData } from "@/types/recurring-invoice"
 import { toast } from "@/components/ui/use-toast"
 
@@ -36,8 +36,8 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
   const clients = Array.from(
     new Set(
       projects.map((project) => ({
-        id: project.clientId,
-        name: project.client,
+        id: project.client_id,
+        name: project.client_name,
       })),
     ),
     (client) => JSON.stringify(client),
@@ -64,7 +64,7 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
     setToday(currentDate)
     const startDate = addDays(currentDate, 1) // Default start date is tomorrow
     setDefaultStartDate(startDate)
-    
+
     // Update formData with the formatted date
     setFormData(prev => ({
       ...prev,
@@ -80,7 +80,7 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
   const total = subtotal + taxAmount - formData.discount
 
   // Filter projects by selected client
-  const clientProjects = projects.filter((project) => project.clientId === formData.clientId)
+  const clientProjects = projects.filter((project) => project.client_id === formData.clientId)
 
   // Filter tasks by selected project
   const projectTasks = tasks.filter((task) => task.projectId === formData.projectId)
@@ -106,7 +106,7 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
 
   // Handle adding a new line item
   const handleAddLineItem = () => {
-    const newLineItem: InvoiceLineItem = {
+    const newLineItem: LineItem = {
       id: uuidv4(),
       description: "",
       quantity: 1,
@@ -128,7 +128,7 @@ export function RecurringInvoiceForm({ clientId, projectId }: RecurringInvoiceFo
   }
 
   // Handle line item changes
-  const handleLineItemChange = (id: string, field: keyof InvoiceLineItem, value: any) => {
+  const handleLineItemChange = (id: string, field: keyof LineItem, value: any) => {
     setFormData({
       ...formData,
       lineItems: formData.lineItems.map((item) => {

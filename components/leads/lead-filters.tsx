@@ -49,7 +49,7 @@ const SORT_OPTIONS = [
 
 export function LeadFilters({
   filters,
-  onFiltersChangeAction,
+  onFiltersChange,
   leads,
   sources,
   statuses,
@@ -59,7 +59,7 @@ export function LeadFilters({
   const [showAdvanced, setShowAdvanced] = useState(false)
 
   // Get unique values from leads for dynamic filter options
-  const uniqueLocations = Array.from(new Set(leads.map(lead => lead.location))).filter(Boolean)
+  const uniqueLocations = Array.from(new Set(leads.map(lead => lead.location).filter((location): location is string => Boolean(location))))
   const uniqueTags = Array.from(new Set(leads.flatMap(lead => lead.tags))).filter(Boolean)
 
   const updateFilter = (key: keyof FilterOptions, value: any) => {
@@ -224,7 +224,7 @@ export function LeadFilters({
             </Badge>
           )}
         </Button>
-        
+
         {getActiveFiltersCount() > 0 && (
           <Button
             variant="ghost"
@@ -308,7 +308,7 @@ export function LeadFilters({
                     <Calendar
                       mode="single"
                       selected={filters.dateRange.from || undefined}
-                      onSelect={(date) => 
+                      onSelect={(date) =>
                         updateFilter('dateRange', { ...filters.dateRange, from: date || null })
                       }
                       initialFocus
@@ -336,7 +336,7 @@ export function LeadFilters({
                     <Calendar
                       mode="single"
                       selected={filters.dateRange.to || undefined}
-                      onSelect={(date) => 
+                      onSelect={(date) =>
                         updateFilter('dateRange', { ...filters.dateRange, to: date || null })
                       }
                       initialFocus
@@ -356,7 +356,7 @@ export function LeadFilters({
                   type="number"
                   placeholder="Min"
                   value={filters.valueRange.min || ''}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     updateFilter('valueRange', {
                       ...filters.valueRange,
                       min: e.target.value ? parseFloat(e.target.value) : null
@@ -367,7 +367,7 @@ export function LeadFilters({
                   type="number"
                   placeholder="Max"
                   value={filters.valueRange.max || ''}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     updateFilter('valueRange', {
                       ...filters.valueRange,
                       max: e.target.value ? parseFloat(e.target.value) : null
@@ -387,7 +387,7 @@ export function LeadFilters({
                   min="0"
                   max="100"
                   value={filters.leadScore.min || ''}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     updateFilter('leadScore', {
                       ...filters.leadScore,
                       min: e.target.value ? parseInt(e.target.value) : null
@@ -400,7 +400,7 @@ export function LeadFilters({
                   min="0"
                   max="100"
                   value={filters.leadScore.max || ''}
-                  onChange={(e) => 
+                  onChange={(e) =>
                     updateFilter('leadScore', {
                       ...filters.leadScore,
                       max: e.target.value ? parseInt(e.target.value) : null
@@ -429,7 +429,7 @@ export function LeadFilters({
                   ))}
                 </div>
               )}
-              
+
               {/* Available Tags */}
               <div className="flex flex-wrap gap-1">
                 {uniqueTags

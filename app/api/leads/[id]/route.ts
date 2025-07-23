@@ -28,11 +28,11 @@ const updateLeadSchema = z.object({
 // GET /api/leads/[id] - Get a specific lead
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
-    
+    const { id } = await params
+
     const lead = await prisma.lead.findUnique({
       where: { id },
       include: {
@@ -65,13 +65,13 @@ export async function GET(
 // PUT /api/leads/[id] - Update a specific lead
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const validatedData = updateLeadSchema.parse(body)
-    
+
     // Check if lead exists
     const existingLead = await prisma.lead.findUnique({
       where: { id }
@@ -83,14 +83,14 @@ export async function PUT(
         { status: 404 }
       )
     }
-    
+
     // Convert date strings to Date objects
     const updateData: any = { ...validatedData }
-    
+
     if (validatedData.lastContactDate) {
       updateData.lastContactDate = new Date(validatedData.lastContactDate)
     }
-    
+
     if (validatedData.nextFollowUp) {
       updateData.nextFollowUp = new Date(validatedData.nextFollowUp)
     }
@@ -116,8 +116,8 @@ export async function PUT(
   } catch (error) {
     console.error('Error updating lead:', error)
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: error instanceof z.ZodError ? 'Invalid lead data' : 'Failed to update lead',
         error: error instanceof z.ZodError ? error.errors : undefined
       },
@@ -129,11 +129,11 @@ export async function PUT(
 // DELETE /api/leads/[id] - Delete a specific lead
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
-    
+    const { id } = await params
+
     // Check if lead exists
     const existingLead = await prisma.lead.findUnique({
       where: { id }

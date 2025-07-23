@@ -45,7 +45,7 @@ export async function getDatabaseInfo() {
   try {
     const connectionTest = await testDatabaseConnection();
     const tables = await getDatabaseTables();
-    
+
     return {
       ...connectionTest,
       tables,

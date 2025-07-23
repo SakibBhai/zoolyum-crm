@@ -1,4 +1,4 @@
-export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled"
+export type InvoiceStatus = "draft" | "sent" | "paid" | "overdue" | "cancelled" | "viewed" | "partial"
 
 export interface InvoiceRecipient {
   id: string
@@ -19,7 +19,7 @@ export interface LineItem {
   quantity: number
   rate: number
   amount: number
-  
+
   // Enhanced fields
   unit?: string
   taxRate?: number
@@ -27,19 +27,19 @@ export interface LineItem {
   discountRate?: number
   discountAmount?: number
   discountType?: 'percentage' | 'fixed'
-  
+
   // Project tracking
   projectId?: string
   taskId?: string
-  
+
   // Categories
   category?: string
-  
+
   // Time tracking
   hours?: number
   startDate?: string
   endDate?: string
-  
+
   // Additional details
   notes?: string
   isRecurring?: boolean
@@ -88,30 +88,30 @@ export interface Invoice {
   terms?: string
   paymentMethod?: string
   paymentDetails?: string
-  
+
   // Template and branding
   templateId?: string
-  
+
   // Payment tracking
   payments: InvoicePayment[]
   amountPaid: number
   amountDue: number
-  
+
   // Email tracking
   emailHistory: InvoiceEmailHistory[]
   lastSentAt?: string
   viewedAt?: string
-  
+
   // Reminders
   remindersSent: number
   nextReminderDate?: string
-  
+
   // Additional fields
   poNumber?: string
   currency: string
   currencySymbol: string
   exchangeRate?: number
-  
+
   createdAt: string
   updatedAt: string
   createdBy: string
@@ -123,9 +123,9 @@ export interface InvoiceFormData {
   projectId?: string
   issueDate: string
   dueDate: string
-  lineItems: InvoiceLineItem[]
+  lineItems: LineItem[]
   taxRate: number
-  discount: number
+  discountAmount: number
   notes?: string
   terms?: string
   paymentMethod?: string

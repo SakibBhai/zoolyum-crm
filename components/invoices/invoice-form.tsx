@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { format, addDays } from "date-fns"
 import { Trash2, Plus, FileText, User, CreditCard, Save, Eye, ArrowRight, ArrowLeft } from "lucide-react"
 import { v4 as uuidv4 } from "uuid"
-import type { InvoiceLineItem, Invoice } from "@/types/invoice"
+import type { LineItem, Invoice } from "@/types/invoice"
 import { toast } from "@/components/ui/use-toast"
 import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -81,12 +81,12 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
   // Get clients from projects (in a real app, you'd have a separate clients context)
   const clients = useMemo(() => {
     return projects
-      .filter((project) => project.client_id && project.client) // Filter out projects without client info
+      .filter((project) => project.client_id && project.client_name) // Filter out projects without client info
       .map((project) => ({
-        id: project.client_id,
-        name: project.client,
+        id: project.client_id!,
+        name: project.client_name!,
       }))
-      .filter((client, index, self) => 
+      .filter((client, index, self) =>
         // Remove duplicates based on ID
         index === self.findIndex(c => c.id === client.id)
       )
@@ -95,7 +95,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
 
   const [today, setToday] = useState<Date>(new Date())
   const [defaultDueDate, setDefaultDueDate] = useState<Date>(addDays(new Date(), 14))
-  
+
   // Set dates on the client side only
   useEffect(() => {
     const currentDate = new Date()
@@ -112,44 +112,44 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
   // Initialize form with default values or existing invoice data
   const defaultValues = invoice
     ? {
-        clientId: invoice.clientId,
-        recipientInfo: invoice.recipientInfo,
-        projectId: invoice.projectId || "",
-        issueDate: invoice.issueDate,
-        dueDate: invoice.dueDate,
-        lineItems: invoice.lineItems,
-        taxRate: invoice.taxRate,
-        discount: invoice.discount,
-        notes: invoice.notes || "",
-        terms: invoice.terms || "",
-        paymentMethod: invoice.paymentMethod || "",
-        paymentDetails: invoice.paymentDetails || "",
-      }
+      clientId: invoice.clientId,
+      recipientInfo: invoice.recipientInfo,
+      projectId: invoice.projectId || "",
+      issueDate: invoice.issueDate,
+      dueDate: invoice.dueDate,
+      lineItems: invoice.lineItems,
+      taxRate: invoice.taxRate,
+      discount: invoice.discountAmount || 0,
+      notes: invoice.notes || "",
+      terms: invoice.terms || "",
+      paymentMethod: invoice.paymentMethod || "",
+      paymentDetails: invoice.paymentDetails || "",
+    }
     : {
-        clientId: clientId || "",
-        recipientInfo: {
-          id: "",
-          name: "",
-          email: "",
-          address: {
-            street: "",
-            city: "",
-            state: "",
-            zipCode: "",
-            country: "",
-          },
+      clientId: clientId || "",
+      recipientInfo: {
+        id: "",
+        name: "",
+        email: "",
+        address: {
+          street: "",
+          city: "",
+          state: "",
+          zipCode: "",
+          country: "",
         },
-        projectId: projectId || "",
-        issueDate: format(today, "yyyy-MM-dd"),
-        dueDate: format(defaultDueDate, "yyyy-MM-dd"),
-        lineItems: [],
-        taxRate: 10, // Default tax rate
-        discount: 0,
-        notes: "",
-        terms: "Payment due within 14 days of receipt.",
-        paymentMethod: "",
-        paymentDetails: "",
-      }
+      },
+      projectId: projectId || "",
+      issueDate: format(today, "yyyy-MM-dd"),
+      dueDate: format(defaultDueDate, "yyyy-MM-dd"),
+      lineItems: [],
+      taxRate: 10, // Default tax rate
+      discount: 0,
+      notes: "",
+      terms: "Payment due within 14 days of receipt.",
+      paymentMethod: "",
+      paymentDetails: "",
+    }
 
   const {
     control,
@@ -188,8 +188,8 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
       if (selectedClient) {
         setValue("recipientInfo", {
           ...formValues.recipientInfo,
-          id: selectedClient.id,
-          name: selectedClient.name,
+          id: selectedClient.id || "",
+          name: selectedClient.name || "",
         })
       }
       prevClientIdRef.current = formValues.clientId
@@ -213,7 +213,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
 
   // Handle adding a new line item
   const handleAddLineItem = () => {
-    const newLineItem: InvoiceLineItem = {
+    const newLineItem: LineItem = {
       id: uuidv4(),
       description: "",
       quantity: 1,
@@ -232,7 +232,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
   }
 
   // Handle line item changes
-  const handleLineItemChange = (id: string, field: keyof InvoiceLineItem, value: any) => {
+  const handleLineItemChange = (id: string, field: keyof LineItem, value: any) => {
     setValue(
       "lineItems",
       formValues.lineItems.map((item) => {
@@ -272,6 +272,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
       // Transform the data to ensure address fields are strings, not undefined
       const transformedData = {
         ...data,
+        discountAmount: data.discount || 0, // Convert discount to discountAmount
         recipientInfo: {
           ...data.recipientInfo,
           address: {
@@ -284,9 +285,12 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
         },
       }
 
+      // Remove the old discount property
+      const { discount, ...finalData } = transformedData
+
       if (isEditing && invoice) {
         const updatedInvoice = updateInvoice(invoice.id, {
-          ...transformedData,
+          ...finalData,
           status: saveAsDraft ? "draft" : invoice.status,
         })
         toast({
@@ -295,7 +299,7 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
         })
         router.push(`/dashboard/invoices/${invoice.id}`)
       } else {
-        const newInvoice = createInvoice(transformedData)
+        const newInvoice = createInvoice(finalData)
         toast({
           title: "Success",
           description: `Invoice ${newInvoice.invoiceNumber} created successfully.`,

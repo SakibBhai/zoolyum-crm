@@ -82,4 +82,7 @@ export interface Project {
   activities?: ProjectActivity[];
   recurrence_pattern?: RecurrencePattern;
   version_history?: VersionHistoryEntry[];
+  tasksTotal?: number;
+  tasksCompleted?: number;
+  statusHistory?: ProjectStatusHistoryEntry[];
 }

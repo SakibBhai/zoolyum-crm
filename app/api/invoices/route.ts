@@ -19,7 +19,16 @@ export async function GET(request: NextRequest) {
 
     // Calculate payment status for each invoice
     const invoicesWithCalculations = invoices.map(invoice => {
-      const paymentStatus = InvoiceCalculator.calculatePaymentStatus(invoice)
+      // Transform database record to Invoice type for calculation
+      const invoiceData = {
+        ...invoice,
+        total: invoice.total || 0,
+        payments: invoice.payments || [],
+        dueDate: invoice.due_date || invoice.dueDate,
+        status: invoice.status
+      } as Invoice
+
+      const paymentStatus = InvoiceCalculator.calculatePaymentStatus(invoiceData)
       return {
         ...invoice,
         amountPaid: paymentStatus.amountPaid,
@@ -44,7 +53,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const invoiceData = await request.json()
-    
+
     // Validate required fields
     if (!invoiceData.clientId || !invoiceData.lineItems || invoiceData.lineItems.length === 0) {
       return NextResponse.json(
@@ -55,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate invoice totals
     const calculations = InvoiceCalculator.calculateInvoice(invoiceData)
-    
+
     // Enhance invoice data with calculations
     const enhancedInvoiceData = {
       ...invoiceData,

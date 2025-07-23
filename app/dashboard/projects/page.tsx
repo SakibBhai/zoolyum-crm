@@ -42,8 +42,22 @@ export default function ProjectsPage() {
         throw new Error('Failed to fetch projects')
       }
       const data = await response.json()
-      setProjects(data.projects || [])
-      setStats(data.stats || stats)
+
+      // The API returns projects array directly, not wrapped in an object
+      setProjects(Array.isArray(data) ? data : [])
+
+      // Calculate stats from the projects data
+      if (Array.isArray(data)) {
+        const calculatedStats = {
+          total: data.length,
+          active: data.filter(p => p.status === 'active').length,
+          completed: data.filter(p => p.status === 'completed').length,
+          overdue: data.filter(p => p.status === 'overdue' || (p.deadline && new Date(p.deadline) < new Date())).length,
+          totalBudget: data.reduce((sum, p) => sum + (parseFloat(p.budget) || 0), 0),
+          averageProgress: data.length > 0 ? data.reduce((sum, p) => sum + (p.progress || 0), 0) / data.length : 0
+        }
+        setStats(calculatedStats)
+      }
     } catch (error) {
       console.error('Error fetching projects:', error)
       toast.error('Failed to load projects')

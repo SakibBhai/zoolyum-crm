@@ -77,8 +77,8 @@ export function InvoiceExport({ invoice }: InvoiceExportProps) {
     // Add summary rows
     rows.push(`"Subtotal",,,"${invoice.subtotal.toFixed(2)}"`)
     rows.push(`"Tax (${invoice.taxRate}%)",,,"${invoice.taxAmount.toFixed(2)}"`)
-    if (invoice.discount > 0) {
-      rows.push(`"Discount",,,"${invoice.discount.toFixed(2)}"`)
+    if ((invoice.discountAmount || 0) > 0) {
+      rows.push(`"Discount",,,"${(invoice.discountAmount || 0).toFixed(2)}"`)
     }
     rows.push(`"Total",,,"${invoice.total.toFixed(2)}"`)
 

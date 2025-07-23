@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { PageHeader } from "@/components/page-header"
 import { ClientsTable } from "@/components/clients/clients-table"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ProjectForm } from "@/components/projects/project-form"
+import { QuickProjectForm } from "@/components/projects/quick-project-form"
 import { ClientForm } from "@/components/clients/client-form"
 import { Plus, Users, Building2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,15 +44,15 @@ export default function ClientsPage() {
           subheading="Manage your clients, track their projects, and grow your business relationships"
         />
         <div className="flex gap-2">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             onClick={() => setActiveTab("add-client")}
             className="flex items-center gap-2"
           >
             <Users className="h-4 w-4" />
             Add Client
           </Button>
-          <Button 
+          <Button
             onClick={() => setActiveTab("add-client")}
             className="flex items-center gap-2"
           >
@@ -81,8 +81,8 @@ export default function ClientsPage() {
         </TabsList>
 
         <TabsContent value="clients" className="space-y-6">
-          <ClientsTable 
-            onAddProject={handleAddProject} 
+          <ClientsTable
+            onAddProject={handleAddProject}
             key={refreshTrigger} // Force re-render when clients are added/updated
           />
         </TabsContent>
@@ -100,7 +100,7 @@ export default function ClientsPage() {
             </CardHeader>
             <CardContent>
               <div className="max-w-2xl">
-                <ClientForm 
+                <ClientForm
                   onSuccess={handleClientCreated}
                   onCancel={() => setActiveTab("clients")}
                 />
@@ -123,8 +123,8 @@ export default function ClientsPage() {
               </CardHeader>
               <CardContent>
                 <div className="max-w-2xl">
-                  <ProjectForm
-                    clientId={selectedClientId}
+                  <QuickProjectForm
+                    defaultClientId={selectedClientId || undefined}
                     onSuccess={handleProjectCreated}
                     onCancel={() => {
                       setShowProjectForm(false)

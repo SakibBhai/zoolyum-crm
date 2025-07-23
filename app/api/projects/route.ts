@@ -9,9 +9,9 @@ export async function GET(request: NextRequest) {
     const priority = searchParams.get('priority')
     const type = searchParams.get('type')
     const managerId = searchParams.get('managerId')
-    
+
     let projects = await projectsService.getAll()
-    
+
     // Apply filters
     if (status) {
       projects = projects.filter(p => p.status === status)
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     if (managerId) {
       projects = projects.filter(p => p.manager === managerId)
     }
-    
+
     // Include activities if requested
     if (includeActivities) {
       for (let i = 0; i < projects.length; i++) {
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
         projects[i] = { ...projects[i], activities } as any
       }
     }
-    
+
     return NextResponse.json(projects)
   } catch (error) {
     console.error('Error fetching projects:', error)
@@ -47,40 +47,36 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const projectData = await request.json()
-    
+
     // Validate required fields
-    if (!projectData.name || !projectData.type) {
+    if (!projectData.name) {
       return NextResponse.json(
-        { error: 'Project name and type are required' },
+        { error: 'Project name is required' },
         { status: 400 }
       )
     }
-    
+
     // Set default values
     const enrichedProjectData = {
       ...projectData,
       status: projectData.status || 'planning',
       priority: projectData.priority || 'medium',
+      type: projectData.type || 'general',
       progress: projectData.progress || 0,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-      created_by: projectData.created_by || 'system'
+      // Ensure created_by is either a valid UUID or null
+      created_by: (projectData.created_by && projectData.created_by !== 'current-user') ? projectData.created_by : null
     }
-    
+
     const newProject = await projectsService.create(enrichedProjectData)
-    
-    // Log document uploads if any
-    if (projectData.documents && projectData.documents.length > 0) {
-      for (const doc of projectData.documents) {
-        await projectsService.addDocument(newProject.id, doc, projectData.created_by)
-      }
-    }
-    
+
     return NextResponse.json(newProject, { status: 201 })
   } catch (error) {
     console.error('Error creating project:', error)
     return NextResponse.json(
-      { error: 'Failed to create project' },
+      {
+        error: 'Failed to create project',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      },
       { status: 500 }
     )
   }

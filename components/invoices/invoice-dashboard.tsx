@@ -6,13 +6,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { 
-  Plus, 
-  Search, 
-  Filter, 
-  Download, 
-  Send, 
-  Eye, 
+import {
+  Plus,
+  Search,
+  Filter,
+  Download,
+  Send,
+  Eye,
   Edit,
   DollarSign,
   FileText,
@@ -82,7 +82,7 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
       if (invoicesResponse.ok) {
         const invoicesData = await invoicesResponse.json()
         setRecentInvoices(invoicesData.invoices || [])
-        
+
         // Calculate stats from all invoices
         const allInvoicesResponse = await fetch('/api/invoices?limit=1000')
         if (allInvoicesResponse.ok) {
@@ -120,10 +120,10 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
 
     invoices.forEach(invoice => {
       const calculations = InvoiceCalculator.calculateInvoice(invoice)
-      
+
       stats.totalRevenue += calculations.total
-      stats.paidAmount += calculations.amountPaid
-      
+      stats.paidAmount += invoice.amountPaid || 0
+
       switch (invoice.status) {
         case 'draft':
           stats.draftCount++
@@ -131,18 +131,18 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
         case 'sent':
         case 'viewed':
           stats.sentCount++
-          stats.pendingAmount += calculations.amountDue
+          stats.pendingAmount += invoice.amountDue || 0
           break
         case 'paid':
           stats.paidCount++
           break
         case 'partial':
           stats.sentCount++
-          stats.pendingAmount += calculations.amountDue
+          stats.pendingAmount += invoice.amountDue || 0
           break
         case 'overdue':
           stats.overdueCount++
-          stats.overdueAmount += calculations.amountDue
+          stats.overdueAmount += invoice.amountDue || 0
           break
       }
     })
@@ -305,7 +305,7 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
                     </div>
                     <Badge variant="secondary">{stats.draftCount}</Badge>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-blue-500"></div>
@@ -313,7 +313,7 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
                     </div>
                     <Badge className="bg-blue-500">{stats.sentCount}</Badge>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-green-500"></div>
@@ -321,7 +321,7 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
                     </div>
                     <Badge className="bg-green-500">{stats.paidCount}</Badge>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
                       <div className="w-3 h-3 rounded-full bg-red-500"></div>
@@ -345,17 +345,17 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
                       {InvoiceCalculator.formatCurrency(stats.averageInvoiceValue)}
                     </span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span>Payment Rate</span>
                     <span className="font-medium">{stats.paymentRate.toFixed(1)}%</span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span>Total Invoices</span>
                     <span className="font-medium">{stats.totalInvoices}</span>
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <span>Outstanding Amount</span>
                     <span className="font-medium text-red-600">
@@ -372,8 +372,8 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
             <CardHeader>
               <div className="flex justify-between items-center">
                 <CardTitle>Recent Invoices</CardTitle>
-                <Button 
-                  variant="outline" 
+                <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => setActiveTab('invoices')}
                 >
@@ -392,11 +392,11 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
                           <div>
                             <p className="font-medium">{invoice.invoiceNumber}</p>
                             <p className="text-sm text-muted-foreground">
-                              {invoice.client?.name || 'Unknown Client'}
+                              {invoice.clientName || 'Unknown Client'}
                             </p>
                           </div>
                         </div>
-                        
+
                         <div className="flex items-center gap-4">
                           <div className="text-right">
                             <p className="font-medium">
@@ -406,11 +406,11 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
                               Due: {new Date(invoice.dueDate).toLocaleDateString()}
                             </p>
                           </div>
-                          
+
                           <Badge className={getStatusColor(invoice.status)}>
                             {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                           </Badge>
-                          
+
                           <div className="flex gap-1">
                             <Button
                               variant="ghost"
@@ -439,10 +439,7 @@ export function InvoiceDashboard({ className }: InvoiceDashboardProps) {
         </TabsContent>
 
         <TabsContent value="invoices">
-          <EnhancedInvoiceManager 
-            onEditInvoice={handleEditInvoice}
-            refreshTrigger={refreshTrigger}
-          />
+          <EnhancedInvoiceManager />
         </TabsContent>
 
         <TabsContent value="analytics" className="space-y-6">

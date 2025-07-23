@@ -11,8 +11,8 @@ export default function DashboardLayout({
   children: React.ReactNode
 }) {
   return (
-    <TaskProvider>
-      <ProjectProvider>
+    <ProjectProvider>
+      <TaskProvider>
         <InvoiceProvider>
           <RecurringInvoiceProvider>
             <div className="flex min-h-screen flex-col md:flex-row">
@@ -21,7 +21,7 @@ export default function DashboardLayout({
             </div>
           </RecurringInvoiceProvider>
         </InvoiceProvider>
-      </ProjectProvider>
-    </TaskProvider>
+      </TaskProvider>
+    </ProjectProvider>
   )
 }

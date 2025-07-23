@@ -218,10 +218,10 @@ export function EnhancedProjectsTable({ initialProjects = [], onProjectUpdate }:
   const filteredAndSortedProjects = useMemo(() => {
     let filtered = projects.filter(project => {
       const matchesSearch = project.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           project.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           project.manager?.toLowerCase().includes(searchTerm.toLowerCase())
-      
+        project.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.client_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        project.manager?.toLowerCase().includes(searchTerm.toLowerCase())
+
       const matchesStatus = statusFilter === 'all' || project.status === statusFilter
       const matchesPriority = priorityFilter === 'all' || project.priority === priorityFilter
       const matchesType = typeFilter === 'all' || project.type === typeFilter
@@ -386,7 +386,7 @@ export function EnhancedProjectsTable({ initialProjects = [], onProjectUpdate }:
                 className="pl-10"
               />
             </div>
-            
+
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger>
                 <SelectValue placeholder="All Statuses" />
@@ -420,7 +420,7 @@ export function EnhancedProjectsTable({ initialProjects = [], onProjectUpdate }:
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">All Types</SelectItem>
-                {projectTypes.map(type => (
+                {projectTypes.map(type => type && (
                   <SelectItem key={type} value={type}>{type}</SelectItem>
                 ))}
               </SelectContent>
@@ -608,8 +608,8 @@ export function EnhancedProjectsTable({ initialProjects = [], onProjectUpdate }:
                           <div className="flex items-center justify-between">
                             <span className="text-sm font-medium">{project.progress || 0}%</span>
                           </div>
-                          <Progress 
-                            value={project.progress || 0} 
+                          <Progress
+                            value={project.progress || 0}
                             className="h-2"
                           />
                         </div>
@@ -670,7 +670,7 @@ export function EnhancedProjectsTable({ initialProjects = [], onProjectUpdate }:
       <EnhancedProjectForm
         open={showProjectForm}
         onOpenChange={setShowProjectForm}
-        project={selectedProject}
+        project={selectedProject || undefined}
         mode={formMode}
         onSuccess={handleFormSuccess}
       />

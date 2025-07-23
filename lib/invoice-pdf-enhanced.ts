@@ -29,7 +29,7 @@ export class EnhancedInvoicePDFGenerator {
   ): Promise<Blob> {
     const opts = { ...this.DEFAULT_OPTIONS, ...options }
     const element = document.getElementById(elementId)
-    
+
     if (!element) {
       throw new Error(`Element with ID '${elementId}' not found`)
     }
@@ -91,7 +91,7 @@ export class EnhancedInvoicePDFGenerator {
 
     // Set colors from template
     const colors = template.design.colorScheme
-    
+
     // Helper function to convert hex to RGB
     const hexToRgb = (hex: string) => {
       const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex)
@@ -125,7 +125,7 @@ export class EnhancedInvoicePDFGenerator {
     pdf.setTextColor(textColor.r, textColor.g, textColor.b)
     pdf.setFontSize(10)
     pdf.setFont('helvetica', 'normal')
-    
+
     const companyLines = [
       template.branding.address.street,
       `${template.branding.address.city}, ${template.branding.address.state} ${template.branding.address.zipCode}`,
@@ -182,7 +182,7 @@ export class EnhancedInvoicePDFGenerator {
     // Table header
     pdf.setFillColor(240, 240, 240)
     pdf.rect(margin, yPosition, pageWidth - 2 * margin, 8, 'F')
-    
+
     pdf.setFont('helvetica', 'bold')
     pdf.setFontSize(9)
     pdf.text('Description', colPositions[0] + 2, yPosition + 5)
@@ -190,24 +190,24 @@ export class EnhancedInvoicePDFGenerator {
     pdf.text('Rate', colPositions[2] + 2, yPosition + 5)
     pdf.text('Tax', colPositions[3] + 2, yPosition + 5)
     pdf.text('Amount', colPositions[4] + 2, yPosition + 5)
-    
+
     yPosition += 10
 
     // Line items
     pdf.setFont('helvetica', 'normal')
     const calculations = InvoiceCalculator.calculateInvoice(invoice)
-    
+
     invoice.lineItems.forEach((item, index) => {
       const itemCalc = calculations.lineItemTotals[item.id]
-      
+
       pdf.text(item.description, colPositions[0] + 2, yPosition + 5)
       pdf.text(item.quantity.toString(), colPositions[1] + 2, yPosition + 5)
       pdf.text(InvoiceCalculator.formatCurrency(item.rate, invoice.currency), colPositions[2] + 2, yPosition + 5)
       pdf.text(`${item.taxRate || 0}%`, colPositions[3] + 2, yPosition + 5)
       pdf.text(InvoiceCalculator.formatCurrency(itemCalc.total, invoice.currency), colPositions[4] + 2, yPosition + 5)
-      
+
       yPosition += 8
-      
+
       // Add line separator
       if (index < invoice.lineItems.length - 1) {
         pdf.setDrawColor(200, 200, 200)
@@ -220,7 +220,7 @@ export class EnhancedInvoicePDFGenerator {
 
     // Totals section
     const totalsX = pageWidth - 80
-    
+
     pdf.setFont('helvetica', 'normal')
     pdf.text('Subtotal:', totalsX, yPosition)
     pdf.text(InvoiceCalculator.formatCurrency(calculations.subtotal, invoice.currency), totalsX + 30, yPosition)
@@ -253,26 +253,26 @@ export class EnhancedInvoicePDFGenerator {
     // Notes and terms
     if (invoice.notes || invoice.terms) {
       yPosition += 20
-      
+
       if (invoice.terms) {
         pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(10)
         pdf.text('Payment Terms:', margin, yPosition)
         yPosition += 6
-        
+
         pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(9)
         const termsLines = pdf.splitTextToSize(invoice.terms, pageWidth - 2 * margin)
         pdf.text(termsLines, margin, yPosition)
         yPosition += termsLines.length * 4 + 10
       }
-      
+
       if (invoice.notes) {
         pdf.setFont('helvetica', 'bold')
         pdf.setFontSize(10)
         pdf.text('Notes:', margin, yPosition)
         yPosition += 6
-        
+
         pdf.setFont('helvetica', 'normal')
         pdf.setFontSize(9)
         const notesLines = pdf.splitTextToSize(invoice.notes, pageWidth - 2 * margin)
@@ -291,19 +291,19 @@ export class EnhancedInvoicePDFGenerator {
   private static addWatermark(pdf: jsPDF, text: string): void {
     const pageWidth = pdf.internal.pageSize.getWidth()
     const pageHeight = pdf.internal.pageSize.getHeight()
-    
+
     pdf.saveGraphicsState()
-    pdf.setGState(new pdf.GState({ opacity: 0.1 }))
+    pdf.setGState(new (pdf as any).GState({ opacity: 0.1 }))
     pdf.setTextColor(128, 128, 128)
     pdf.setFontSize(60)
     pdf.setFont('helvetica', 'bold')
-    
+
     // Rotate and center the watermark
     pdf.text(text, pageWidth / 2, pageHeight / 2, {
       angle: 45,
       align: 'center'
     })
-    
+
     pdf.restoreGraphicsState()
   }
 

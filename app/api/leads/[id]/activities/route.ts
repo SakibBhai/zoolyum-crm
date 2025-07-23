@@ -18,15 +18,15 @@ const activitySchema = z.object({
 // GET /api/leads/[id]/activities - Get activities for a specific lead
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
     const limit = parseInt(searchParams.get('limit') || '20')
     const type = searchParams.get('type')
-    
+
     // Check if lead exists
     const lead = await prisma.lead.findUnique({
       where: { id }
@@ -84,13 +84,13 @@ export async function GET(
 // POST /api/leads/[id]/activities - Create a new activity for a lead
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params
+    const { id } = await params
     const body = await request.json()
     const validatedData = activitySchema.parse(body)
-    
+
     // Check if lead exists
     const lead = await prisma.lead.findUnique({
       where: { id }
@@ -102,7 +102,7 @@ export async function POST(
         { status: 404 }
       )
     }
-    
+
     // Create activity
     const activityData: any = {
       ...validatedData,
@@ -133,8 +133,8 @@ export async function POST(
   } catch (error) {
     console.error('Error creating activity:', error)
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: error instanceof z.ZodError ? 'Invalid activity data' : 'Failed to create activity',
         error: error instanceof z.ZodError ? error.errors : undefined
       },

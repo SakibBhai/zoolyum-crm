@@ -23,16 +23,6 @@ import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { TaskDependency } from "@/types/task"
 
-// Get team members from context with error handling
-let teamMembers: any[] = []
-try {
-  const context = useTaskContext()
-  teamMembers = context.teamMembers || []
-} catch (error) {
-  console.warn('TaskContext not available, using empty team members array')
-  teamMembers = []
-}
-
 const taskCategories = [
   "Design",
   "Copywriting",
@@ -84,26 +74,12 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
   const searchParams = useSearchParams()
   const projectId = searchParams ? searchParams.get("project") : null
 
-  // Get task context with error handling
-  let addTask: any, tasks: any[] = [], addTaskDependency: any, updateTask: any, contextTeamMembers: any[] = []
-  try {
-    const taskContext = useTaskContext()
-    addTask = taskContext.addTask
-    tasks = taskContext.tasks || []
-    addTaskDependency = taskContext.addTaskDependency
-    updateTask = taskContext.updateTask
-    contextTeamMembers = taskContext.teamMembers || []
-  } catch (error) {
-    console.warn('TaskContext not available in form component')
-    // Provide fallback functions
-    addTask = async () => { throw new Error('Task context not available') }
-    updateTask = async () => { throw new Error('Task context not available') }
-    addTaskDependency = () => { throw new Error('Task context not available') }
-  }
-  
-  // Use the team members from the earlier context call or fallback to context team members
-  const finalTeamMembers = (teamMembers && teamMembers.length > 0) ? teamMembers : (contextTeamMembers || [])
-  const { projects } = useProjectContext()
+  // Get contexts directly
+  const taskContext = useTaskContext()
+  const projectContext = useProjectContext()
+
+  const { addTask, tasks, addTaskDependency, updateTask, teamMembers } = taskContext
+  const { projects } = projectContext
 
   const [selectedDependencies, setSelectedDependencies] = useState<
     {
@@ -128,7 +104,7 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
       name: "",
       projectId: projectId || "",
       category: "",
-      assignedById: "1", // Default to Sarah Johnson
+      assignedById: "1",
       assignedToId: "",
       priority: "medium",
       status: "to_do",
@@ -146,14 +122,13 @@ export function TaskForm({ initialData, onSubmit, mode = 'create' }: TaskFormPro
 
   // Filter tasks based on selected project
   const currentProjectId = form.watch("projectId")
-  const projectTasks = tasks.filter((task) => task.projectId === currentProjectId)
+  const projectTasks = tasks.filter((task: any) => task.projectId === currentProjectId)
 
-async function handleSubmit(values: z.infer<typeof formSchema>) {
+  async function handleSubmit(values: z.infer<typeof formSchema>) {
     // If onSubmit prop is provided (edit mode), use it
     if (onSubmit) {
-      // Find the project to get its name
-      const project = projects.find((p) => p.id === values.projectId)
-  const assignedTo = finalTeamMembers?.find((m) => m.id === values.assignedToId)?.name || "Unknown"
+      const project = projects.find((p: any) => p.id === values.projectId)
+      const assignedTo = teamMembers?.find((m: any) => m.id === values.assignedToId)?.name || "Unknown"
 
       if (!project) {
         toast({
@@ -164,18 +139,13 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
         return
       }
 
-      // Format the date to string
       const formattedDueDate = format(values.dueDate, "MMMM d, yyyy")
-
-      // Map status values to proper format
       const statusMap: Record<string, string> = {
         to_do: "To Do",
         in_progress: "In Progress",
         review: "Review",
         done: "Done",
       }
-
-      // Map priority values to proper format
       const priorityMap: Record<string, string> = {
         low: "Low",
         medium: "Medium",
@@ -204,9 +174,8 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
     }
 
     // Original create logic
-    // Find the project to get its name
-    const project = projects.find((p) => p.id === values.projectId)
-  const assignedTo = finalTeamMembers?.find((m) => m.id === values.assignedToId)?.name || "Unknown"
+    const project = projects.find((p: any) => p.id === values.projectId)
+    const assignedTo = teamMembers?.find((m: any) => m.id === values.assignedToId)?.name || "Unknown"
 
     if (!project) {
       toast({
@@ -217,18 +186,13 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
       return
     }
 
-    // Format the date to string
     const formattedDueDate = format(values.dueDate, "MMMM d, yyyy")
-
-    // Map status values to proper format
     const statusMap: Record<string, string> = {
       to_do: "To Do",
       in_progress: "In Progress",
       review: "Review",
       done: "Done",
     }
-
-    // Map priority values to proper format
     const priorityMap: Record<string, string> = {
       low: "Low",
       medium: "Medium",
@@ -237,7 +201,10 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
     }
 
     try {
-      // Create the new task
+      if (!addTask) {
+        throw new Error('Task context not available')
+      }
+
       const newTaskId = await addTask({
         name: values.name,
         project: project.name,
@@ -252,16 +219,17 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
       })
 
       // Add dependencies
-      selectedDependencies.forEach((dep) => {
-        addTaskDependency(newTaskId, dep.taskId, dep.type)
-      })
+      if (addTaskDependency) {
+        selectedDependencies.forEach((dep) => {
+          addTaskDependency(newTaskId, dep.taskId, dep.type)
+        })
+      }
 
       toast({
         title: "Task created",
         description: `${values.name} has been added to your tasks.`,
       })
 
-      // Redirect to the new task or tasks list
       if (projectId) {
         router.push(`/dashboard/projects/${projectId}?tab=tasks`)
       } else {
@@ -280,7 +248,6 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
   const toggleDependency = (taskId: string, type: TaskDependency["type"]) => {
     setSelectedDependencies((prev) => {
       const exists = prev.some((dep) => dep.taskId === taskId && dep.type === type)
-
       if (exists) {
         return prev.filter((dep) => !(dep.taskId === taskId && dep.type === type))
       } else {
@@ -334,12 +301,11 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
                           <SelectValue placeholder="Select a project" />
                         </SelectTrigger>
                       </FormControl>
-                      <SelectContent>
-                        {projects.map((project) => (
-                          <SelectItem key={project.id} value={project.id}>
-                            {project.name}
-                          </SelectItem>
-                        ))}
+                      <SelectContent>                                {projects.map((project: any) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -387,7 +353,7 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {finalTeamMembers.map((member) => (
+                        {(teamMembers || []).map((member: any) => (
                           <SelectItem key={member.id} value={member.id}>
                             {member.name}
                           </SelectItem>
@@ -412,7 +378,7 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {finalTeamMembers.map((member) => (
+                        {(teamMembers || []).map((member: any) => (
                           <SelectItem key={member.id} value={member.id}>
                             {member.name}
                           </SelectItem>
@@ -549,7 +515,7 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
                           {projectTasks.length === 0 ? (
                             <p className="text-sm text-muted-foreground">No tasks available in this project.</p>
                           ) : (
-                            projectTasks.map((task) => (
+                            projectTasks.map((task: any) => (
                               <div key={`blocks-${task.id}`} className="flex items-center space-x-2">
                                 <Checkbox
                                   id={`blocks-${task.id}`}
@@ -580,7 +546,7 @@ async function handleSubmit(values: z.infer<typeof formSchema>) {
                           {projectTasks.length === 0 ? (
                             <p className="text-sm text-muted-foreground">No tasks available in this project.</p>
                           ) : (
-                            projectTasks.map((task) => (
+                            projectTasks.map((task: any) => (
                               <div key={`related-${task.id}`} className="flex items-center space-x-2">
                                 <Checkbox
                                   id={`related-${task.id}`}

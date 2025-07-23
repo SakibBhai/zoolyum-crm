@@ -15,8 +15,8 @@ const createClientSchema = z.object({
 
 // Query parameters schema
 const querySchema = z.object({
-  page: z.string().transform(val => parseInt(val) || 1),
-  limit: z.string().transform(val => Math.min(parseInt(val) || 10, 100)),
+  page: z.string().optional().transform(val => parseInt(val || '1') || 1),
+  limit: z.string().optional().transform(val => Math.min(parseInt(val || '10') || 10, 100)),
   search: z.string().optional(),
   status: z.enum(["active", "inactive", "prospect", "all"]).optional(),
   industry: z.string().optional(),
@@ -28,12 +28,12 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const queryParams = Object.fromEntries(searchParams.entries())
-    
+
     // Validate query parameters
     const validatedParams = querySchema.parse(queryParams)
-    
+
     const result = await clientsService.getAllPaginated(validatedParams)
-    
+
     return NextResponse.json({
       clients: result.clients,
       pagination: {
@@ -54,14 +54,14 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error("Error in GET /api/clients:", error)
-    
+
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
-        error: "Invalid query parameters", 
-        details: error.errors 
+      return NextResponse.json({
+        error: "Invalid query parameters",
+        details: error.errors
       }, { status: 400 })
     }
-    
+
     return NextResponse.json({ error: "Failed to fetch clients" }, { status: 500 })
   }
 }
@@ -69,26 +69,26 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    
+
     // Validate request body
     const validatedData = createClientSchema.parse(body)
-    
+
     const newClient = await clientsService.create(validatedData)
-    
+
     return NextResponse.json({
       client: newClient,
       message: "Client created successfully"
     }, { status: 201 })
   } catch (error) {
     console.error("Error in POST /api/clients:", error)
-    
+
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ 
-        error: "Validation failed", 
-        details: error.errors 
+      return NextResponse.json({
+        error: "Validation failed",
+        details: error.errors
       }, { status: 400 })
     }
-    
+
     return NextResponse.json({ error: "Failed to create client" }, { status: 500 })
   }
 }

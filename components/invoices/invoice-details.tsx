@@ -131,8 +131,8 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
                 </thead>
                 <tbody>
                   ${invoice.lineItems
-                    .map(
-                      (item) => `
+                .map(
+                  (item) => `
                     <tr>
                       <td>${item.description}</td>
                       <td>${item.quantity}</td>
@@ -140,8 +140,8 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
                       <td>$${item.amount.toFixed(2)}</td>
                     </tr>
                   `,
-                    )
-                    .join("")}
+                )
+                .join("")}
                 </tbody>
                 <tfoot>
                   <tr>
@@ -152,16 +152,15 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
                     <td colspan="3" style="text-align: right;"><strong>Tax (${invoice.taxRate}%):</strong></td>
                     <td>$${invoice.taxAmount.toFixed(2)}</td>
                   </tr>
-                  ${
-                    invoice.discount > 0
-                      ? `
+                  ${(invoice.discountAmount || 0) > 0
+                ? `
                   <tr>
                     <td colspan="3" style="text-align: right;"><strong>Discount:</strong></td>
-                    <td>$${invoice.discount.toFixed(2)}</td>
+                    <td>$${(invoice.discountAmount || 0).toFixed(2)}</td>
                   </tr>
                   `
-                      : ""
-                  }
+                : ""
+              }
                   <tr>
                     <td colspan="3" style="text-align: right;"><strong>Total:</strong></td>
                     <td><strong>$${invoice.total.toFixed(2)}</strong></td>
@@ -214,8 +213,8 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
         // Add summary rows
         rows.push(`"Subtotal",,,"${invoice.subtotal.toFixed(2)}"`)
         rows.push(`"Tax (${invoice.taxRate}%)",,,"${invoice.taxAmount.toFixed(2)}"`)
-        if (invoice.discount > 0) {
-          rows.push(`"Discount",,,"${invoice.discount.toFixed(2)}"`)
+        if ((invoice.discountAmount || 0) > 0) {
+          rows.push(`"Discount",,,"${(invoice.discountAmount || 0).toFixed(2)}"`)
         }
         rows.push(`"Total",,,"${invoice.total.toFixed(2)}"`)
 
@@ -257,8 +256,12 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
         return "bg-gray-500"
       case "sent":
         return "bg-blue-500"
+      case "viewed":
+        return "bg-indigo-500"
       case "paid":
         return "bg-green-500"
+      case "partial":
+        return "bg-orange-500"
       case "overdue":
         return "bg-red-500"
       case "cancelled":
@@ -386,12 +389,12 @@ export function InvoiceDetails({ invoiceId }: InvoiceDetailsProps) {
                         </td>
                         <td className="px-4 py-2 text-right">${invoice.taxAmount.toFixed(2)}</td>
                       </tr>
-                      {invoice.discount > 0 && (
+                      {(invoice.discountAmount || 0) > 0 && (
                         <tr>
                           <td colSpan={3} className="px-4 py-2 text-right font-medium">
                             Discount:
                           </td>
-                          <td className="px-4 py-2 text-right">${invoice.discount.toFixed(2)}</td>
+                          <td className="px-4 py-2 text-right">${(invoice.discountAmount || 0).toFixed(2)}</td>
                         </tr>
                       )}
                       <tr className="border-t">

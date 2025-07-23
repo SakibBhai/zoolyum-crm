@@ -112,15 +112,15 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
   const { toast } = useToast()
   const router = useRouter()
   const { getProjectById } = useProjectContext()
-  const [clients, setClients] = useState<Array<{ id: string; name: string }>>([])  
-  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string }>>([])  
+  const [clients, setClients] = useState<Array<{ id: string; name: string }>>([])
+  const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string }>>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [hasChanges, setHasChanges] = useState(false)
   const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
   const [showRecurrencePreview, setShowRecurrencePreview] = useState(false)
-  
+
   // Animation states
   const [isVisible, setIsVisible] = useState(false)
 
@@ -150,9 +150,9 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
     if (project) {
       form.reset({
         name: project.name,
-        clientId: project.clientId,
+        clientId: project.client_id,
         type: project.type,
-        managerId: project.managerId,
+        managerId: project.manager,
         // Initialize with undefined to prevent hydration mismatch
         startDate: undefined,
         deadline: undefined,
@@ -161,11 +161,11 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
         isRecurring: false, // Set based on your data structure
         priority: 3, // Set based on your data structure
       })
-      
+
       // Set date values after initial render to prevent hydration mismatch
       setTimeout(() => {
-        form.setValue('startDate', project.startDate ? new Date(project.startDate) : new Date());
-        form.setValue('deadline', project.deadline ? new Date(project.deadline) : new Date());
+        form.setValue('startDate', project.start_date ? new Date(project.start_date) : new Date());
+        form.setValue('deadline', project.end_date ? new Date(project.end_date) : new Date());
       }, 0);
     }
   }, [project, form])
@@ -178,12 +178,12 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
           fetch('/api/clients'),
           fetch('/api/team')
         ])
-        
+
         if (clientsResponse.ok) {
           const clientsData = await clientsResponse.json()
           setClients(clientsData)
         }
-        
+
         if (teamResponse.ok) {
           const teamData = await teamResponse.json()
           // Handle the response structure from the enhanced team API
@@ -198,7 +198,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
         })
       }
     }
-    
+
     fetchData()
   }, [])
 
@@ -206,26 +206,26 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
   useEffect(() => {
     const subscription = form.watch(() => {
       setHasChanges(true)
-      
+
       // Set up debounced autosave
       if (autoSaveTimerRef.current) {
         clearTimeout(autoSaveTimerRef.current)
       }
-      
+
       setAutoSaveStatus('idle')
-      
+
       autoSaveTimerRef.current = setTimeout(() => {
         handleAutoSave()
       }, 2000) // 2 second debounce
     })
-    
+
     return () => subscription.unsubscribe()
   }, [form.watch])
 
   // Animation effect
   useEffect(() => {
     setIsVisible(true)
-    
+
     return () => {
       setIsVisible(false)
     }
@@ -239,7 +239,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
         form.handleSubmit(onSubmit)()
       }
     }
-    
+
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [form])
@@ -258,12 +258,12 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
    */
   const handleAutoSave = async () => {
     if (!hasChanges || !form.formState.isValid) return
-    
+
     setAutoSaveStatus('saving')
-    
+
     try {
       const formData = form.getValues()
-      
+
       // Create a diff of what changed
       const changedFields = Object.entries(formData).reduce((acc, [key, value]) => {
         // @ts-ignore - Dynamic access
@@ -273,12 +273,12 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
         }
         return acc
       }, {} as Record<string, any>)
-      
+
       if (Object.keys(changedFields).length === 0) {
         setAutoSaveStatus('idle')
         return
       }
-      
+
       // Only send changed fields
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'PATCH',
@@ -287,11 +287,11 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
         },
         body: JSON.stringify(changedFields),
       })
-      
+
       if (response.ok) {
         setAutoSaveStatus('saved')
         setHasChanges(false)
-        
+
         // Reset after a few seconds
         setTimeout(() => {
           setAutoSaveStatus('idle')
@@ -311,7 +311,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
   const onSubmit = async (data: z.infer<typeof formSchema>) => {
     setIsLoading(true)
     setIsSaving(true)
-    
+
     try {
       // Format dates for API
       const formattedData = {
@@ -324,7 +324,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
         manager_id: data.managerId,
         is_recurring: data.isRecurring,
       }
-      
+
       const response = await fetch(`/api/projects/${projectId}`, {
         method: 'PUT',
         headers: {
@@ -332,16 +332,16 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
         },
         body: JSON.stringify(formattedData),
       })
-      
+
       if (response.ok) {
         toast({
           title: "Success",
           description: "Project updated successfully",
         })
-        
+
         // Refresh data or redirect
         router.refresh()
-        
+
         if (onClose) {
           onClose()
         }
@@ -367,13 +367,13 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
    */
   const getRecurrencePreview = () => {
     const { recurrencePattern, startDate, recurrenceEnd } = formValues
-    
+
     if (!recurrencePattern?.type) return 'No recurrence pattern selected'
-    
+
     const pattern = recurrencePatterns.find(p => p.id === recurrencePattern.type)
     const startFormatted = startDate ? format(startDate, "MMMM d, yyyy") : 'the start date'
     const endFormatted = recurrenceEnd ? format(recurrenceEnd, "MMMM d, yyyy") : 'no end date'
-    
+
     return `This project will repeat ${pattern?.description.toLowerCase() || ''} starting from ${startFormatted} until ${endFormatted}.`
   }
 
@@ -383,10 +383,10 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
   const renderPriorityStars = () => {
     const stars = []
     const currentPriority = form.watch('priority')
-    
+
     for (let i = 1; i <= 5; i++) {
       stars.push(
-        <motion.div 
+        <motion.div
           key={i}
           whileHover={{ scale: 1.2 }}
           onClick={() => form.setValue('priority', i, { shouldDirty: true })}
@@ -395,16 +395,16 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
             i <= currentPriority ? "text-yellow-500" : "text-gray-300"
           )}
         >
-          <Star 
+          <Star
             className={cn(
               "h-6 w-6",
               i <= currentPriority ? "fill-yellow-500" : "fill-transparent"
-            )} 
+            )}
           />
         </motion.div>
       )
     }
-    
+
     return (
       <div className="flex space-x-2">
         {stars}
@@ -454,14 +454,14 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                       Error saving
                     </Badge>
                   )}
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
+                  <Button
+                    variant="outline"
+                    size="sm"
                     onClick={onClose}
                   >
                     Cancel
                   </Button>
-                  <Button 
+                  <Button
                     type="submit"
                     onClick={form.handleSubmit(onSubmit)}
                     disabled={isLoading || isSaving}
@@ -476,7 +476,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                 Update project details and settings
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -498,15 +498,15 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                               </FormItem>
                             )}
                           />
-                          
+
                           <FormField
                             control={form.control}
                             name="clientId"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Client</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange} 
+                                <Select
+                                  onValueChange={field.onChange}
                                   defaultValue={field.value}
                                 >
                                   <FormControl>
@@ -527,7 +527,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                             )}
                           />
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
@@ -535,8 +535,8 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Project Type</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange} 
+                                <Select
+                                  onValueChange={field.onChange}
                                   defaultValue={field.value}
                                 >
                                   <FormControl>
@@ -556,15 +556,15 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                               </FormItem>
                             )}
                           />
-                          
+
                           <FormField
                             control={form.control}
                             name="managerId"
                             render={({ field }) => (
                               <FormItem>
                                 <FormLabel>Project Manager</FormLabel>
-                                <Select 
-                                  onValueChange={field.onChange} 
+                                <Select
+                                  onValueChange={field.onChange}
                                   defaultValue={field.value}
                                 >
                                   <FormControl>
@@ -585,7 +585,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                             )}
                           />
                         </div>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <FormField
                             control={form.control}
@@ -631,7 +631,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                               </FormItem>
                             )}
                           />
-                          
+
                           <FormField
                             control={form.control}
                             name="deadline"
@@ -677,7 +677,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                             )}
                           />
                         </div>
-                        
+
                         <FormField
                           control={form.control}
                           name="description"
@@ -685,17 +685,17 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                             <FormItem>
                               <FormLabel>Description</FormLabel>
                               <FormControl>
-                                <Textarea 
-                                  placeholder="Enter project description" 
-                                  className="min-h-[120px]" 
-                                  {...field} 
+                                <Textarea
+                                  placeholder="Enter project description"
+                                  className="min-h-[120px]"
+                                  {...field}
                                 />
                               </FormControl>
                               <FormMessage />
                             </FormItem>
                           )}
                         />
-                        
+
                         <FormField
                           control={form.control}
                           name="priority"
@@ -720,7 +720,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                         />
                       </AccordionContent>
                     </AccordionItem>
-                    
+
                     <AccordionItem value="recurrence" className="border rounded-md px-4 mt-4">
                       <AccordionTrigger className="py-4">Recurrence Settings</AccordionTrigger>
                       <AccordionContent className="pb-4 pt-2 space-y-4">
@@ -746,7 +746,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                             </FormItem>
                           )}
                         />
-                        
+
                         {form.watch("isRecurring") && (
                           <motion.div
                             initial={{ opacity: 0, height: 0 }}
@@ -783,7 +783,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                                 </FormItem>
                               )}
                             />
-                            
+
                             <FormField
                               control={form.control}
                               name="recurrenceEnd"
@@ -829,15 +829,15 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                                 </FormItem>
                               )}
                             />
-                            
+
                             <div className="rounded-lg border p-4 bg-muted/50">
                               <div className="flex justify-between items-center mb-2">
                                 <h4 className="text-sm font-medium flex items-center">
                                   <Clock className="h-4 w-4 mr-1" />
                                   Recurrence Preview
                                 </h4>
-                                <Button 
-                                  variant="ghost" 
+                                <Button
+                                  variant="ghost"
                                   size="sm"
                                   type="button"
                                   onClick={() => setShowRecurrencePreview(!showRecurrencePreview)}
@@ -845,7 +845,7 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                                   {showRecurrencePreview ? "Hide" : "Show"}
                                 </Button>
                               </div>
-                              
+
                               {showRecurrencePreview && (
                                 <motion.div
                                   initial={{ opacity: 0 }}
@@ -861,16 +861,16 @@ export function EditProjectModule({ projectId, onClose }: EditProjectModuleProps
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
-                  
+
                   <div className="flex justify-end space-x-2">
-                    <Button 
-                      variant="outline" 
+                    <Button
+                      variant="outline"
                       type="button"
                       onClick={onClose}
                     >
                       Cancel
                     </Button>
-                    <Button 
+                    <Button
                       type="submit"
                       disabled={isLoading || isSaving}
                       className="gap-1"

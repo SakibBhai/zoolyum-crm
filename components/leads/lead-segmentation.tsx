@@ -121,7 +121,7 @@ export function LeadSegmentation({
   const [isCreateSegmentDialogOpen, setIsCreateSegmentDialogOpen] = useState(false)
   const [segments, setSegments] = useState<Segment[]>([])
   const [editingSegment, setEditingSegment] = useState<Segment | null>(null)
-  
+
   // Segment form state
   const [segmentForm, setSegmentForm] = useState({
     name: '',
@@ -151,7 +151,7 @@ export function LeadSegmentation({
   // Get tag usage statistics
   const tagStats = useMemo(() => {
     const stats = new Map<string, { count: number; leads: Lead[] }>()
-    
+
     leads.forEach(lead => {
       lead.tags.forEach(tag => {
         if (!stats.has(tag)) {
@@ -162,7 +162,7 @@ export function LeadSegmentation({
         stat.leads.push(lead)
       })
     })
-    
+
     return Array.from(stats.entries())
       .map(([tag, data]) => ({ tag, ...data }))
       .sort((a, b) => b.count - a.count)
@@ -175,44 +175,44 @@ export function LeadSegmentation({
       if (criteria.status && criteria.status.length > 0) {
         if (!criteria.status.includes(lead.status)) return false
       }
-      
+
       // Source filter
       if (criteria.source && criteria.source.length > 0) {
         if (!criteria.source.includes(lead.source)) return false
       }
-      
+
       // Assigned to filter
       if (criteria.assignedTo && criteria.assignedTo.length > 0) {
-        if (!criteria.assignedTo.includes(lead.assignedTo)) return false
+        if (!lead.assignedTo || !criteria.assignedTo.includes(lead.assignedTo)) return false
       }
-      
+
       // Tags filter (lead must have at least one of the specified tags)
       if (criteria.tags && criteria.tags.length > 0) {
         if (!criteria.tags.some(tag => lead.tags.includes(tag))) return false
       }
-      
+
       // Lead score filter
       if (criteria.leadScore) {
         if (criteria.leadScore.min !== undefined && lead.leadScore < criteria.leadScore.min) return false
         if (criteria.leadScore.max !== undefined && lead.leadScore > criteria.leadScore.max) return false
       }
-      
+
       // Value filter
       if (criteria.value) {
         if (criteria.value.min !== undefined && lead.value < criteria.value.min) return false
         if (criteria.value.max !== undefined && lead.value > criteria.value.max) return false
       }
-      
+
       // Location filter
       if (criteria.location && criteria.location.length > 0) {
-        if (!criteria.location.includes(lead.location)) return false
+        if (!lead.location || !criteria.location.includes(lead.location)) return false
       }
-      
+
       // Industry filter
       if (criteria.industry && criteria.industry.length > 0) {
-        if (!criteria.industry.includes(lead.industry)) return false
+        if (!lead.industry || !criteria.industry.includes(lead.industry)) return false
       }
-      
+
       return true
     })
   }
@@ -222,13 +222,13 @@ export function LeadSegmentation({
     return segments.map(segment => {
       const segmentLeads = getSegmentLeads(segment.criteria)
       const totalValue = segmentLeads.reduce((sum, lead) => sum + lead.value, 0)
-      const avgLeadScore = segmentLeads.length > 0 
-        ? segmentLeads.reduce((sum, lead) => sum + lead.leadScore, 0) / segmentLeads.length 
+      const avgLeadScore = segmentLeads.length > 0
+        ? segmentLeads.reduce((sum, lead) => sum + lead.leadScore, 0) / segmentLeads.length
         : 0
-      const conversionRate = segmentLeads.length > 0 
-        ? (segmentLeads.filter(lead => lead.status === 'closed-won').length / segmentLeads.length) * 100 
+      const conversionRate = segmentLeads.length > 0
+        ? (segmentLeads.filter(lead => lead.status === 'closed-won').length / segmentLeads.length) * 100
         : 0
-      
+
       return {
         ...segment,
         leadCount: segmentLeads.length,
@@ -242,7 +242,7 @@ export function LeadSegmentation({
 
   const handleAddTag = (tag: string) => {
     if (!tag.trim() || selectedLeads.length === 0) return
-    
+
     selectedLeads.forEach(leadId => {
       const lead = leads.find(l => l.id === leadId)
       if (lead && !lead.tags.includes(tag)) {
@@ -251,7 +251,7 @@ export function LeadSegmentation({
         })
       }
     })
-    
+
     setNewTag('')
     setIsAddTagDialogOpen(false)
     setSelectedLeads([])
@@ -277,7 +277,7 @@ export function LeadSegmentation({
 
   const handleCreateSegment = () => {
     if (!segmentForm.name.trim()) return
-    
+
     const newSegment: Segment = {
       id: Date.now().toString(),
       name: segmentForm.name,
@@ -286,7 +286,7 @@ export function LeadSegmentation({
       color: segmentForm.color,
       createdAt: new Date()
     }
-    
+
     setSegments(prev => [...prev, newSegment])
     setIsCreateSegmentDialogOpen(false)
     resetSegmentForm()
@@ -294,19 +294,19 @@ export function LeadSegmentation({
 
   const handleUpdateSegment = () => {
     if (!editingSegment || !segmentForm.name.trim()) return
-    
-    setSegments(prev => prev.map(segment => 
-      segment.id === editingSegment.id 
+
+    setSegments(prev => prev.map(segment =>
+      segment.id === editingSegment.id
         ? {
-            ...segment,
-            name: segmentForm.name,
-            description: segmentForm.description,
-            criteria: segmentForm.criteria,
-            color: segmentForm.color
-          }
+          ...segment,
+          name: segmentForm.name,
+          description: segmentForm.description,
+          criteria: segmentForm.criteria,
+          color: segmentForm.color
+        }
         : segment
     ))
-    
+
     setEditingSegment(null)
     resetSegmentForm()
   }
@@ -348,7 +348,7 @@ export function LeadSegmentation({
     const csvContent = [
       ['Name', 'Email', 'Phone', 'Company', 'Status', 'Source', 'Value', 'Lead Score', 'Tags'].join(','),
       ...segmentLeads.map(lead => [
-        lead.name,
+        `${lead.firstName} ${lead.lastName}`,
         lead.email,
         lead.phone,
         lead.company,
@@ -359,7 +359,7 @@ export function LeadSegmentation({
         lead.tags.join('; ')
       ].join(','))
     ].join('\n')
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -388,7 +388,7 @@ export function LeadSegmentation({
           <TabsTrigger value="segments">Segments</TabsTrigger>
           <TabsTrigger value="bulk-actions">Bulk Actions</TabsTrigger>
         </TabsList>
-        
+
         {/* Tags Management */}
         <TabsContent value="tags" className="space-y-6">
           <div className="flex justify-between items-center">
@@ -398,7 +398,7 @@ export function LeadSegmentation({
                 Organize and categorize your leads with tags
               </p>
             </div>
-            
+
             <Dialog open={isAddTagDialogOpen} onOpenChange={setIsAddTagDialogOpen}>
               <DialogTrigger asChild>
                 <Button disabled={selectedLeads.length === 0}>
@@ -413,7 +413,7 @@ export function LeadSegmentation({
                     Add a tag to {selectedLeads.length} selected leads
                   </DialogDescription>
                 </DialogHeader>
-                
+
                 <div className="space-y-4">
                   <div className="grid gap-2">
                     <Label htmlFor="new-tag">Tag Name</Label>
@@ -424,7 +424,7 @@ export function LeadSegmentation({
                       placeholder="Enter tag name"
                     />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <Label>Quick Tags</Label>
                     <div className="flex flex-wrap gap-2">
@@ -441,7 +441,7 @@ export function LeadSegmentation({
                     </div>
                   </div>
                 </div>
-                
+
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsAddTagDialogOpen(false)}>
                     Cancel
@@ -453,7 +453,7 @@ export function LeadSegmentation({
               </DialogContent>
             </Dialog>
           </div>
-          
+
           {/* Tag Statistics */}
           <div className="grid gap-4 md:grid-cols-3">
             <Card>
@@ -464,7 +464,7 @@ export function LeadSegmentation({
                 <div className="text-2xl font-bold">{allTags.length}</div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Tagged Leads</CardTitle>
@@ -475,14 +475,14 @@ export function LeadSegmentation({
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium">Avg Tags per Lead</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                  {leads.length > 0 
+                  {leads.length > 0
                     ? (leads.reduce((sum, lead) => sum + lead.tags.length, 0) / leads.length).toFixed(1)
                     : '0'
                   }
@@ -490,7 +490,7 @@ export function LeadSegmentation({
               </CardContent>
             </Card>
           </div>
-          
+
           {/* Tag List */}
           <Card>
             <CardHeader>
@@ -509,7 +509,7 @@ export function LeadSegmentation({
                         {count} leads
                       </span>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -521,7 +521,7 @@ export function LeadSegmentation({
                           <div className="p-2 max-h-60 overflow-y-auto">
                             {tagLeads.map(lead => (
                               <div key={lead.id} className="p-2 hover:bg-muted rounded">
-                                <div className="font-medium">{lead.name}</div>
+                                <div className="font-medium">{lead.firstName} {lead.lastName}</div>
                                 <div className="text-sm text-muted-foreground">
                                   {lead.company} • {lead.status}
                                 </div>
@@ -530,7 +530,7 @@ export function LeadSegmentation({
                           </div>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                      
+
                       <Button
                         variant="outline"
                         size="sm"
@@ -544,7 +544,7 @@ export function LeadSegmentation({
               </div>
             </CardContent>
           </Card>
-          
+
           {/* Leads with Tags */}
           <Card>
             <CardHeader>
@@ -568,15 +568,15 @@ export function LeadSegmentation({
                           }
                         }}
                       />
-                      
+
                       <div>
-                        <div className="font-medium">{lead.name}</div>
+                        <div className="font-medium">{lead.firstName} {lead.lastName}</div>
                         <div className="text-sm text-muted-foreground">
                           {lead.company} • {lead.status}
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex flex-wrap gap-1">
                       {lead.tags.map(tag => (
                         <Badge key={tag} variant="secondary" className="relative group">
@@ -596,7 +596,7 @@ export function LeadSegmentation({
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         {/* Segments */}
         <TabsContent value="segments" className="space-y-6">
           <div className="flex justify-between items-center">
@@ -606,7 +606,7 @@ export function LeadSegmentation({
                 Create custom segments based on lead criteria
               </p>
             </div>
-            
+
             <Dialog open={isCreateSegmentDialogOpen} onOpenChange={setIsCreateSegmentDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
@@ -621,7 +621,7 @@ export function LeadSegmentation({
                     Define criteria to automatically group leads
                   </DialogDescription>
                 </DialogHeader>
-                
+
                 <div className="space-y-4 max-h-96 overflow-y-auto">
                   <div className="grid gap-2">
                     <Label htmlFor="segment-name">Segment Name</Label>
@@ -632,7 +632,7 @@ export function LeadSegmentation({
                       placeholder="Enter segment name"
                     />
                   </div>
-                  
+
                   <div className="grid gap-2">
                     <Label htmlFor="segment-description">Description</Label>
                     <Textarea
@@ -643,26 +643,25 @@ export function LeadSegmentation({
                       rows={2}
                     />
                   </div>
-                  
+
                   <div className="grid gap-2">
                     <Label>Color</Label>
                     <div className="flex gap-2">
                       {SEGMENT_COLORS.map(color => (
                         <button
                           key={color}
-                          className={`w-6 h-6 rounded-full border-2 ${
-                            segmentForm.color === color ? 'border-gray-900' : 'border-gray-300'
-                          }`}
+                          className={`w-6 h-6 rounded-full border-2 ${segmentForm.color === color ? 'border-gray-900' : 'border-gray-300'
+                            }`}
                           style={{ backgroundColor: color }}
                           onClick={() => setSegmentForm(prev => ({ ...prev, color }))}
                         />
                       ))}
                     </div>
                   </div>
-                  
+
                   <div className="space-y-4">
                     <h4 className="font-medium">Criteria</h4>
-                    
+
                     {/* Status Filter */}
                     <div className="grid gap-2">
                       <Label>Status</Label>
@@ -696,7 +695,7 @@ export function LeadSegmentation({
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Tags Filter */}
                     <div className="grid gap-2">
                       <Label>Tags (any of)</Label>
@@ -730,7 +729,7 @@ export function LeadSegmentation({
                         ))}
                       </div>
                     </div>
-                    
+
                     {/* Lead Score Range */}
                     <div className="grid gap-2">
                       <Label>Lead Score Range</Label>
@@ -767,7 +766,7 @@ export function LeadSegmentation({
                         />
                       </div>
                     </div>
-                    
+
                     {/* Value Range */}
                     <div className="grid gap-2">
                       <Label>Lead Value Range</Label>
@@ -805,14 +804,14 @@ export function LeadSegmentation({
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="pt-4 border-t">
                     <div className="text-sm text-muted-foreground">
                       Preview: {getSegmentLeads(segmentForm.criteria).length} leads match these criteria
                     </div>
                   </div>
                 </div>
-                
+
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setIsCreateSegmentDialogOpen(false)}>
                     Cancel
@@ -824,7 +823,7 @@ export function LeadSegmentation({
               </DialogContent>
             </Dialog>
           </div>
-          
+
           {/* Segments List */}
           <div className="grid gap-4">
             {segmentStats.map(segment => (
@@ -841,7 +840,7 @@ export function LeadSegmentation({
                         <CardDescription>{segment.description}</CardDescription>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="outline"
@@ -877,7 +876,7 @@ export function LeadSegmentation({
                         <div className="text-sm text-muted-foreground">Leads</div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <Target className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -885,7 +884,7 @@ export function LeadSegmentation({
                         <div className="text-sm text-muted-foreground">Avg Score</div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <TrendingUp className="h-4 w-4 text-muted-foreground" />
                       <div>
@@ -893,7 +892,7 @@ export function LeadSegmentation({
                         <div className="text-sm text-muted-foreground">Conversion</div>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center space-x-2">
                       <div>
                         <div className="font-medium">
@@ -908,7 +907,7 @@ export function LeadSegmentation({
             ))}
           </div>
         </TabsContent>
-        
+
         {/* Bulk Actions */}
         <TabsContent value="bulk-actions" className="space-y-6">
           <div>
@@ -917,7 +916,7 @@ export function LeadSegmentation({
               Perform actions on multiple leads at once
             </p>
           </div>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Selected Leads ({selectedLeads.length})</CardTitle>
@@ -943,7 +942,7 @@ export function LeadSegmentation({
                       >
                         Mark as Qualified
                       </Button>
-                      
+
                       <Button
                         variant="outline"
                         onClick={() => {
@@ -953,7 +952,7 @@ export function LeadSegmentation({
                       >
                         Mark as Contacted
                       </Button>
-                      
+
                       <Button
                         variant="outline"
                         onClick={() => {
@@ -966,7 +965,7 @@ export function LeadSegmentation({
                       >
                         Assign To
                       </Button>
-                      
+
                       <Button
                         variant="outline"
                         onClick={() => setIsAddTagDialogOpen(true)}
@@ -974,7 +973,7 @@ export function LeadSegmentation({
                         Add Tag
                       </Button>
                     </div>
-                    
+
                     <div className="text-sm text-muted-foreground">
                       Selected leads:
                       <div className="mt-2 space-y-1">
@@ -982,7 +981,7 @@ export function LeadSegmentation({
                           const lead = leads.find(l => l.id === leadId)
                           return lead ? (
                             <div key={leadId} className="flex items-center justify-between p-2 bg-muted rounded">
-                              <span>{lead.name} - {lead.company}</span>
+                              <span>{lead.firstName} {lead.lastName} - {lead.company}</span>
                               <Button
                                 variant="ghost"
                                 size="sm"
@@ -1002,7 +1001,7 @@ export function LeadSegmentation({
           </Card>
         </TabsContent>
       </Tabs>
-      
+
       {/* Edit Segment Dialog */}
       {editingSegment && (
         <Dialog open={!!editingSegment} onOpenChange={() => setEditingSegment(null)}>
@@ -1013,7 +1012,7 @@ export function LeadSegmentation({
                 Update segment criteria and settings
               </DialogDescription>
             </DialogHeader>
-            
+
             <div className="space-y-4 max-h-96 overflow-y-auto">
               <div className="grid gap-2">
                 <Label htmlFor="edit-segment-name">Segment Name</Label>
@@ -1023,7 +1022,7 @@ export function LeadSegmentation({
                   onChange={(e) => setSegmentForm(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
-              
+
               <div className="grid gap-2">
                 <Label htmlFor="edit-segment-description">Description</Label>
                 <Textarea
@@ -1033,14 +1032,14 @@ export function LeadSegmentation({
                   rows={2}
                 />
               </div>
-              
+
               <div className="pt-4 border-t">
                 <div className="text-sm text-muted-foreground">
                   Preview: {getSegmentLeads(segmentForm.criteria).length} leads match these criteria
                 </div>
               </div>
             </div>
-            
+
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditingSegment(null)}>
                 Cancel

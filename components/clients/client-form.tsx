@@ -22,7 +22,7 @@ const formSchema = z.object({
     message: "Please enter a valid email address.",
   }).optional().or(z.literal("")),
   phone: z.string().optional(),
-  status: z.enum(["active", "inactive", "prospect"]).default("prospect"),
+  status: z.enum(["active", "inactive", "prospect"]),
   notes: z.string().optional(),
 })
 
@@ -54,7 +54,7 @@ export function ClientForm({ clientData, isEditing = false, onSuccess, onCancel 
       contact_name: clientData?.contact_name || "",
       email: clientData?.email || "",
       phone: clientData?.phone || "",
-      status: clientData?.status || "prospect",
+      status: (clientData?.status as "active" | "inactive" | "prospect") || "prospect",
       notes: clientData?.notes || "",
     },
   })
@@ -63,7 +63,7 @@ export function ClientForm({ clientData, isEditing = false, onSuccess, onCancel 
     try {
       const url = isEditing ? `/api/clients/${clientData?.id}` : "/api/clients"
       const method = isEditing ? "PUT" : "POST"
-      
+
       const response = await fetch(url, {
         method,
         headers: {
@@ -86,7 +86,7 @@ export function ClientForm({ clientData, isEditing = false, onSuccess, onCancel 
 
       toast({
         title: isEditing ? "Client updated" : "Client created",
-        description: isEditing 
+        description: isEditing
           ? `${values.name} has been updated successfully.`
           : `${values.name} has been added to your clients.`,
       })
@@ -101,7 +101,7 @@ export function ClientForm({ clientData, isEditing = false, onSuccess, onCancel 
       console.error(isEditing ? "Error updating client:" : "Error creating client:", error)
       toast({
         title: "Error",
-        description: isEditing 
+        description: isEditing
           ? "There was a problem updating the client. Please try again."
           : "There was a problem creating the client. Please try again.",
         variant: "destructive",
@@ -232,9 +232,9 @@ export function ClientForm({ clientData, isEditing = false, onSuccess, onCancel 
             />
 
             <div className="flex justify-end gap-3">
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={onCancel || (() => router.back())}
               >
                 Cancel

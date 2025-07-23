@@ -1,4 +1,4 @@
-import type { InvoiceLineItem } from "@/types/invoice"
+import type { LineItem } from "@/types/invoice"
 
 export type RecurrenceInterval = "weekly" | "monthly" | "quarterly" | "yearly" | "custom"
 
@@ -19,7 +19,7 @@ export interface RecurringInvoiceTemplate {
   taxRate: number
   discount: number
   notes?: string
-  lineItems: InvoiceLineItem[]
+  lineItems: LineItem[]
   createdAt: string
   updatedAt: string
 }
@@ -36,5 +36,5 @@ export interface RecurringInvoiceFormData {
   taxRate: number
   discount: number
   notes?: string
-  lineItems: InvoiceLineItem[]
+  lineItems: LineItem[]
 }

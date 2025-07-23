@@ -11,7 +11,7 @@ function generateUUID(): string {
     return crypto.randomUUID()
   }
   // Fallback for environments where crypto.randomUUID is not available
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = Math.random() * 16 | 0
     const v = c === 'x' ? r : (r & 0x3 | 0x8)
     return v.toString(16)
@@ -49,7 +49,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch('/api/team')
       if (response.ok) {
         const data = await response.json()
-        setTeamMembers(data)
+        // Extract teamMembers from the response object
+        setTeamMembers(data.teamMembers || [])
       }
     } catch (error) {
       console.error('Error fetching team members:', error)
@@ -201,35 +202,35 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
       // Transform the updates to match the database schema
       const dbUpdates: any = {}
-      
+
       if (updates.status) {
         dbUpdates.status = statusMap[updates.status] || updates.status.toLowerCase().replace(' ', '_').replace('to_do', 'todo')
       }
-      
+
       if (updates.priority) {
         dbUpdates.priority = priorityMap[updates.priority] || updates.priority.toLowerCase()
       }
-      
+
       if (updates.name) {
         dbUpdates.title = updates.name
       }
-      
+
       if (updates.brief || updates.details) {
         dbUpdates.description = (updates.brief || '') + (updates.details ? '\n\n' + updates.details : '')
       }
-      
+
       if (updates.projectId) {
         dbUpdates.project_id = updates.projectId
       }
-      
+
       if (updates.assignedTo) {
         dbUpdates.assigned_to = updates.assignedTo
       }
-      
+
       if (updates.dueDate) {
         dbUpdates.due_date = updates.dueDate
       }
-      
+
       // Copy over any other fields that don't need transformation
       Object.keys(updates).forEach(key => {
         if (!['status', 'priority', 'name', 'brief', 'details', 'projectId', 'assignedTo', 'dueDate'].includes(key)) {
@@ -292,7 +293,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
       // If API call successful, update local state
       setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskId))
-      
+
       return { success: true }
     } catch (error) {
       console.error('Error deleting task:', error)
@@ -304,7 +305,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     try {
       // First update the database via API
       await updateTask(taskId, { status: newStatus })
-      
+
       // Then update local state with status history
       setTasks((prevTasks) =>
         prevTasks.map((task) => {

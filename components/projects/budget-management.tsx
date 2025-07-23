@@ -186,7 +186,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
 
   const handleExpenseSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       const expenseData = {
         ...expenseForm,
@@ -194,12 +194,12 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
         status: 'pending'
       }
 
-      const url = editingExpense 
+      const url = editingExpense
         ? `/api/projects/${projectId}/budget/expenses/${editingExpense.id}`
         : `/api/projects/${projectId}/budget/expenses`
-      
+
       const method = editingExpense ? 'PUT' : 'POST'
-      
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -229,14 +229,14 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
 
   const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
-      const url = editingCategory 
+      const url = editingCategory
         ? `/api/projects/${projectId}/budget/categories/${editingCategory.id}`
         : `/api/projects/${projectId}/budget/categories`
-      
+
       const method = editingCategory ? 'PUT' : 'POST'
-      
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -363,9 +363,9 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
 
   const getBudgetStatus = () => {
     if (!budget) return { status: 'good', message: 'No budget data' }
-    
+
     const utilizationPercent = (budget.spentAmount / budget.totalBudget) * 100
-    
+
     if (utilizationPercent >= budget.budgetAlerts.criticalThreshold) {
       return { status: 'critical', message: 'Budget critically exceeded!' }
     } else if (utilizationPercent >= budget.budgetAlerts.warningThreshold) {
@@ -426,7 +426,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -438,7 +438,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -450,7 +450,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
             </div>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -462,12 +462,12 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
               <div className={cn(
                 "h-8 w-8 rounded-full flex items-center justify-center",
                 budgetStatus.status === 'critical' ? 'bg-red-100' :
-                budgetStatus.status === 'warning' ? 'bg-yellow-100' : 'bg-green-100'
+                  budgetStatus.status === 'warning' ? 'bg-yellow-100' : 'bg-green-100'
               )}>
                 <AlertTriangle className={cn(
                   "h-4 w-4",
                   budgetStatus.status === 'critical' ? 'text-red-600' :
-                  budgetStatus.status === 'warning' ? 'text-yellow-600' : 'text-green-600'
+                    budgetStatus.status === 'warning' ? 'text-yellow-600' : 'text-green-600'
                 )} />
               </div>
             </div>
@@ -520,16 +520,16 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
               <CardContent>
                 <div className="space-y-4">
                   {budget.categories.map((category) => {
-                    const utilizationPercent = category.allocatedAmount > 0 
-                      ? (category.spentAmount / category.allocatedAmount) * 100 
+                    const utilizationPercent = category.allocatedAmount > 0
+                      ? (category.spentAmount / category.allocatedAmount) * 100
                       : 0
-                    
+
                     return (
                       <div key={category.id} className="space-y-2">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
+                            <div
+                              className="w-3 h-3 rounded-full"
                               style={{ backgroundColor: category.color }}
                             />
                             <span className="font-medium">{category.name}</span>
@@ -602,7 +602,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                     {editingCategory ? 'Edit Category' : 'Create Category'}
                   </DialogTitle>
                 </DialogHeader>
-                
+
                 <form onSubmit={handleCategorySubmit} className="space-y-4">
                   <div>
                     <Label htmlFor="categoryName">Category Name</Label>
@@ -613,7 +613,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="categoryDescription">Description</Label>
                     <Textarea
@@ -622,7 +622,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                       onChange={(e) => setCategoryForm({ ...categoryForm, description: e.target.value })}
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="allocatedAmount">Allocated Amount</Label>
                     <Input
@@ -635,7 +635,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="categoryColor">Color</Label>
                     <Input
@@ -645,7 +645,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                       onChange={(e) => setCategoryForm({ ...categoryForm, color: e.target.value })}
                     />
                   </div>
-                  
+
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsCategoryDialogOpen(false)}>
                       Cancel
@@ -675,16 +675,16 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                 <TableBody>
                   {budget.categories.map((category) => {
                     const remaining = category.allocatedAmount - category.spentAmount
-                    const utilizationPercent = category.allocatedAmount > 0 
-                      ? (category.spentAmount / category.allocatedAmount) * 100 
+                    const utilizationPercent = category.allocatedAmount > 0
+                      ? (category.spentAmount / category.allocatedAmount) * 100
                       : 0
-                    
+
                     return (
                       <TableRow key={category.id}>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
+                            <div
+                              className="w-3 h-3 rounded-full"
                               style={{ backgroundColor: category.color }}
                             />
                             <div>
@@ -754,7 +754,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                     {editingExpense ? 'Edit Expense' : 'Add Expense'}
                   </DialogTitle>
                 </DialogHeader>
-                
+
                 <form onSubmit={handleExpenseSubmit} className="space-y-4">
                   <div>
                     <Label htmlFor="expenseTitle">Title</Label>
@@ -765,7 +765,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                       required
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="expenseDescription">Description</Label>
                     <Textarea
@@ -774,7 +774,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                       onChange={(e) => setExpenseForm({ ...expenseForm, description: e.target.value })}
                     />
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="expenseAmount">Amount</Label>
@@ -788,7 +788,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                         required
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="expenseCategory">Category</Label>
                       <Select
@@ -808,7 +808,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                       </Select>
                     </div>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="expenseType">Type</Label>
@@ -828,7 +828,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                         </SelectContent>
                       </Select>
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="expenseDate">Date</Label>
                       <Input
@@ -840,7 +840,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                       />
                     </div>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="expenseVendor">Vendor</Label>
                     <Input
@@ -849,7 +849,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                       onChange={(e) => setExpenseForm({ ...expenseForm, vendor: e.target.value })}
                     />
                   </div>
-                  
+
                   <DialogFooter>
                     <Button type="button" variant="outline" onClick={() => setIsExpenseDialogOpen(false)}>
                       Cancel
@@ -894,8 +894,8 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <div 
-                              className="w-3 h-3 rounded-full" 
+                            <div
+                              className="w-3 h-3 rounded-full"
                               style={{ backgroundColor: category?.color }}
                             />
                             {category?.name}
@@ -933,7 +933,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                                   description: expense.description || '',
                                   amount: expense.amount,
                                   categoryId: expense.categoryId,
-                                  type: expense.type,
+                                  type: expense.type === 'expense' ? 'expense' : 'expense' as const,
                                   date: expense.date.split('T')[0],
                                   vendor: expense.vendor || '',
                                   tags: expense.tags
@@ -981,7 +981,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                   onChange={(e) => setBudgetSettings({ ...budgetSettings, totalBudget: parseFloat(e.target.value) })}
                 />
               </div>
-              
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="warningThreshold">Warning Threshold (%)</Label>
@@ -994,7 +994,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                     onChange={(e) => setBudgetSettings({ ...budgetSettings, warningThreshold: parseInt(e.target.value) })}
                   />
                 </div>
-                
+
                 <div>
                   <Label htmlFor="criticalThreshold">Critical Threshold (%)</Label>
                   <Input
@@ -1007,7 +1007,7 @@ export function BudgetManagement({ projectId }: BudgetManagementProps) {
                   />
                 </div>
               </div>
-              
+
               <Button onClick={updateBudgetSettings}>
                 Update Settings
               </Button>

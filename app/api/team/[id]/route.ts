@@ -25,33 +25,33 @@ export async function PUT(
   try {
     const { id } = await params
     const body = await request.json()
-    
+
     // Validate required fields if they are being updated
     if (body.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(body.email)) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 })
     }
-    
+
     if (body.name && (!body.name.trim() || body.name.trim().length < 2)) {
       return NextResponse.json({ error: "Name must be at least 2 characters long" }, { status: 400 })
     }
-    
+
     if (body.role && (!body.role.trim() || body.role.trim().length < 2)) {
       return NextResponse.json({ error: "Role must be at least 2 characters long" }, { status: 400 })
     }
-    
+
     console.log(`Updating team member ${id} with:`, body)
-    
+
     const updatedTeamMember = await teamService.update(id, body)
-    
+
     if (!updatedTeamMember) {
       return NextResponse.json({ error: "Team member not found" }, { status: 404 })
     }
-    
+
     console.log(`Successfully updated team member ${id}`)
     return NextResponse.json(updatedTeamMember)
   } catch (error) {
     console.error("Error in PUT /api/team/[id]:", error)
-    
+
     // Handle specific error types
     if (error instanceof Error) {
       if (error.message.includes('not found')) {
@@ -61,8 +61,8 @@ export async function PUT(
         return NextResponse.json({ error: "Email already exists" }, { status: 409 })
       }
     }
-    
-    return NextResponse.json({ 
+
+    return NextResponse.json({
       error: "Failed to update team member",
       details: error instanceof Error ? error.message : "Unknown error"
     }, { status: 500 })

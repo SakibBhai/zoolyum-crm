@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
     const dateFrom = searchParams.get('dateFrom')
     const dateTo = searchParams.get('dateTo')
     const assignedTo = searchParams.get('assignedTo')
-    
+
     // Build date filter
     const dateFilter: any = {}
     if (dateFrom || dateTo) {
@@ -18,13 +18,13 @@ export async function GET(request: NextRequest) {
       if (dateFrom) dateFilter.createdAt.gte = new Date(dateFrom)
       if (dateTo) dateFilter.createdAt.lte = new Date(dateTo)
     }
-    
+
     // Build assigned filter
     const assignedFilter: any = {}
     if (assignedTo && assignedTo !== 'all') {
       assignedFilter.assignedTo = assignedTo
     }
-    
+
     const baseFilter = { ...dateFilter, ...assignedFilter }
 
     // Get basic counts
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
     // Get conversion metrics
     const conversionRate = totalLeads > 0 ? (closedWonLeads / totalLeads) * 100 : 0
     const qualificationRate = totalLeads > 0 ? (qualifiedLeads / totalLeads) * 100 : 0
-    
+
     // Get monthly trends (last 12 months)
     let monthlyTrends
     if (assignedTo && assignedTo !== 'all') {
@@ -172,9 +172,9 @@ export async function GET(request: NextRequest) {
         qualifiedLeads,
         closedWonLeads,
         closedLostLeads,
-        totalValue: valueStats._sum.value || 0,
-        averageLeadScore: Math.round(valueStats._avg.leadScore || 0),
-        averageLeadValue: Math.round(valueStats._avg.value || 0),
+        totalValue: valueStats._sum.value ? Number(valueStats._sum.value) : 0,
+        averageLeadScore: Math.round(valueStats._avg.leadScore ? Number(valueStats._avg.leadScore) : 0),
+        averageLeadValue: Math.round(valueStats._avg.value ? Number(valueStats._avg.value) : 0),
         conversionRate: Math.round(conversionRate * 100) / 100,
         qualificationRate: Math.round(qualificationRate * 100) / 100,
         recentActivitiesCount
@@ -183,17 +183,17 @@ export async function GET(request: NextRequest) {
         byStatus: leadsByStatus.map(item => ({
           status: item.status,
           count: item._count.id,
-          value: item._sum.value || 0
+          value: item._sum.value ? Number(item._sum.value) : 0
         })),
         bySource: leadsBySource.map(item => ({
           source: item.source,
           count: item._count.id,
-          value: item._sum.value || 0
+          value: item._sum.value ? Number(item._sum.value) : 0
         })),
         byAssignee: leadsByAssignee.map(item => ({
           assignee: item.assignedTo || 'Unassigned',
           count: item._count.id,
-          value: item._sum.value || 0
+          value: item._sum.value ? Number(item._sum.value) : 0
         }))
       },
       trends: {
@@ -201,16 +201,16 @@ export async function GET(request: NextRequest) {
         topSources: topSources.map(item => ({
           source: item.source,
           wonCount: item._count.id,
-          totalValue: item._sum.value || 0
+          totalValue: item._sum.value ? Number(item._sum.value) : 0
         }))
       },
       pipeline: {
         stages: pipelineValue.map(item => ({
           stage: item.status,
           count: item._count.id,
-          value: item._sum.value || 0
+          value: item._sum.value ? Number(item._sum.value) : 0
         })),
-        totalPipelineValue: pipelineValue.reduce((sum, item) => sum + (item._sum.value || 0), 0)
+        totalPipelineValue: pipelineValue.reduce((sum, item) => sum + (item._sum.value ? Number(item._sum.value) : 0), 0)
       }
     }
 

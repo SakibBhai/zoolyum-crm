@@ -166,11 +166,12 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     try {
       const nextDue = calculateNextDue({
         ...formData,
-        startDate: formData.startDate.toISOString()
+        startDate: formData.startDate.toISOString(),
+        endDate: formData.endDate?.toISOString()
       })
 
       const taskData = {
@@ -181,12 +182,12 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
         nextDue: nextDue.toISOString()
       }
 
-      const url = editingTask 
+      const url = editingTask
         ? `/api/projects/${projectId}/recurring-tasks/${editingTask.id}`
         : `/api/projects/${projectId}/recurring-tasks`
-      
+
       const method = editingTask ? 'PUT' : 'POST'
-      
+
       const response = await fetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -219,14 +220,14 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
     setFormData({
       title: task.title,
       description: task.description,
-      frequency: task.frequency,
+      frequency: task.frequency as "weekly",
       interval: task.interval,
       daysOfWeek: task.daysOfWeek || [],
       dayOfMonth: task.dayOfMonth || 1,
       startDate: parseISO(task.startDate),
       endDate: task.endDate ? parseISO(task.endDate) : undefined,
       assignedTo: task.assignedTo || '',
-      priority: task.priority,
+      priority: task.priority as "medium",
       estimatedHours: task.estimatedHours || 0,
       tags: task.tags,
       isActive: task.isActive
@@ -324,12 +325,12 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
   const formatFrequency = (task: RecurringTask) => {
     const { frequency, interval, daysOfWeek } = task
     let base = `Every ${interval > 1 ? interval + ' ' : ''}${frequency}`
-    
+
     if (frequency === 'weekly' && daysOfWeek && daysOfWeek.length > 0) {
       const dayNames = daysOfWeek.map(day => DAYS_OF_WEEK[day].label).join(', ')
       base += ` on ${dayNames}`
     }
-    
+
     return base
   }
 
@@ -373,7 +374,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                   Set up a task that will be automatically generated based on your schedule.
                 </DialogDescription>
               </DialogHeader>
-              
+
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="col-span-2">
@@ -385,7 +386,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                       required
                     />
                   </div>
-                  
+
                   <div className="col-span-2">
                     <Label htmlFor="description">Description</Label>
                     <Textarea
@@ -395,7 +396,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                       rows={3}
                     />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="frequency">Frequency</Label>
                     <Select
@@ -414,7 +415,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="interval">Interval</Label>
                     <Input
@@ -425,7 +426,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                       onChange={(e) => setFormData({ ...formData, interval: parseInt(e.target.value) })}
                     />
                   </div>
-                  
+
                   {formData.frequency === 'weekly' && (
                     <div className="col-span-2">
                       <Label>Days of Week</Label>
@@ -457,7 +458,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                       </div>
                     </div>
                   )}
-                  
+
                   <div>
                     <Label htmlFor="priority">Priority</Label>
                     <Select
@@ -476,7 +477,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                       </SelectContent>
                     </Select>
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="estimatedHours">Estimated Hours</Label>
                     <Input
@@ -488,7 +489,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                       onChange={(e) => setFormData({ ...formData, estimatedHours: parseFloat(e.target.value) })}
                     />
                   </div>
-                  
+
                   <div>
                     <Label>Start Date</Label>
                     <Popover>
@@ -514,7 +515,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  
+
                   <div>
                     <Label>End Date (Optional)</Label>
                     <Popover>
@@ -540,7 +541,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                       </PopoverContent>
                     </Popover>
                   </div>
-                  
+
                   <div className="col-span-2 flex items-center space-x-2">
                     <Switch
                       id="isActive"
@@ -550,7 +551,7 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                     <Label htmlFor="isActive">Active</Label>
                   </div>
                 </div>
-                
+
                 <DialogFooter>
                   <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                     Cancel
@@ -652,7 +653,6 @@ export function RecurringTasks({ projectId }: RecurringTasksProps) {
                           <Switch
                             checked={task.isActive}
                             onCheckedChange={(checked) => handleToggleActive(task.id, checked)}
-                            size="sm"
                           />
                           <span className="text-sm text-muted-foreground">
                             {task.isActive ? 'Active' : 'Inactive'}
