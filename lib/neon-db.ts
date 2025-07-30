@@ -938,11 +938,11 @@ export const transactionsService = {
       }
 
       if (params?.dateFrom) {
-        whereConditions.push(`date >= '${params.dateFrom}'`)
+        whereConditions.push(`transaction_date >= '${params.dateFrom}'`)
       }
 
       if (params?.dateTo) {
-        whereConditions.push(`date <= '${params.dateTo}'`)
+        whereConditions.push(`transaction_date <= '${params.dateTo}'`)
       }
 
       if (params?.projectId) {
@@ -957,8 +957,12 @@ export const transactionsService = {
         ? `WHERE ${whereConditions.join(' AND ')}`
         : ''
 
-      const validSortColumns = ['date', 'amount', 'category', 'type', 'created_at']
-      const sortColumn = validSortColumns.includes(params?.sortBy || '') ? params?.sortBy : 'date'
+      const validSortColumns = ['transaction_date', 'amount', 'category', 'type', 'created_at']
+      let sortColumn = validSortColumns.includes(params?.sortBy || '') ? params?.sortBy : 'transaction_date'
+      // Map 'date' to 'transaction_date' for backward compatibility
+      if (params?.sortBy === 'date') {
+        sortColumn = 'transaction_date'
+      }
       const sortDirection = params?.sortOrder === 'asc' ? 'ASC' : 'DESC'
 
       const transactions = await sql`
@@ -974,6 +978,13 @@ export const transactionsService = {
         LIMIT ${limit} OFFSET ${offset}
       `
 
+      // Map transaction_date to date for frontend compatibility
+      const mappedTransactions = transactions.map(transaction => ({
+        ...transaction,
+        date: transaction.transaction_date,
+        createdAt: transaction.created_at
+      }))
+
       const countResult = await sql`
         SELECT COUNT(*) as total 
         FROM transactions t
@@ -981,7 +992,7 @@ export const transactionsService = {
       `
 
       return {
-        transactions,
+        transactions: mappedTransactions,
         total: parseInt(countResult[0]?.total?.toString() || '0'),
         page,
         limit
@@ -1001,37 +1012,35 @@ export const transactionsService = {
     try {
       const [newTransaction] = await sql`
         INSERT INTO transactions (
-          type, amount, category, description, date,
-          project_id, client_id, invoice_id, receipt_url,
-          tax_amount, tax_rate, payment_method, reference_number,
-          notes, tags, is_recurring, recurring_frequency,
-          recurring_end_date, status, created_by
+          type, amount, category, description, transaction_date,
+          project_id, client_id, invoice_id,
+          payment_method, reference_number,
+          notes, status, created_by
         )
         VALUES (
           ${transaction.type},
           ${transaction.amount},
           ${transaction.category},
           ${transaction.description},
-          ${transaction.date},
+          ${transaction.transaction_date},
           ${transaction.project_id || null},
           ${transaction.client_id || null},
           ${transaction.invoice_id || null},
-          ${transaction.receipt_url || null},
-          ${transaction.tax_amount || 0},
-          ${transaction.tax_rate || 0},
           ${transaction.payment_method || null},
           ${transaction.reference_number || null},
           ${transaction.notes || null},
-          ${transaction.tags || []},
-          ${transaction.is_recurring || false},
-          ${transaction.recurring_frequency || null},
-          ${transaction.recurring_end_date || null},
           ${transaction.status || 'completed'},
           ${transaction.created_by || null}
         )
         RETURNING *
       `
-      return newTransaction
+      
+      // Map transaction_date to date for frontend compatibility
+      return {
+        ...newTransaction,
+        date: newTransaction.transaction_date,
+        createdAt: newTransaction.created_at
+      }
     } catch (error) {
       console.error("Error creating transaction:", error)
       throw error
@@ -1051,17 +1060,13 @@ export const transactionsService = {
         amount: updates.amount !== undefined ? updates.amount : currentTransaction.amount,
         category: updates.category !== undefined ? updates.category : currentTransaction.category,
         description: updates.description !== undefined ? updates.description : currentTransaction.description,
-        date: updates.date !== undefined ? updates.date : currentTransaction.date,
+        date: updates.date !== undefined ? updates.date : currentTransaction.transaction_date,
         project_id: updates.project_id !== undefined ? updates.project_id : currentTransaction.project_id,
         client_id: updates.client_id !== undefined ? updates.client_id : currentTransaction.client_id,
         invoice_id: updates.invoice_id !== undefined ? updates.invoice_id : currentTransaction.invoice_id,
-        receipt_url: updates.receipt_url !== undefined ? updates.receipt_url : currentTransaction.receipt_url,
-        tax_amount: updates.tax_amount !== undefined ? updates.tax_amount : currentTransaction.tax_amount,
-        tax_rate: updates.tax_rate !== undefined ? updates.tax_rate : currentTransaction.tax_rate,
         payment_method: updates.payment_method !== undefined ? updates.payment_method : currentTransaction.payment_method,
         reference_number: updates.reference_number !== undefined ? updates.reference_number : currentTransaction.reference_number,
         notes: updates.notes !== undefined ? updates.notes : currentTransaction.notes,
-        tags: updates.tags !== undefined ? updates.tags : currentTransaction.tags,
         status: updates.status !== undefined ? updates.status : currentTransaction.status
       }
 
@@ -1072,23 +1077,25 @@ export const transactionsService = {
           amount = ${updatedData.amount},
           category = ${updatedData.category},
           description = ${updatedData.description},
-          date = ${updatedData.date},
+          transaction_date = ${updatedData.date},
           project_id = ${updatedData.project_id},
           client_id = ${updatedData.client_id},
           invoice_id = ${updatedData.invoice_id},
-          receipt_url = ${updatedData.receipt_url},
-          tax_amount = ${updatedData.tax_amount},
-          tax_rate = ${updatedData.tax_rate},
           payment_method = ${updatedData.payment_method},
           reference_number = ${updatedData.reference_number},
           notes = ${updatedData.notes},
-          tags = ${updatedData.tags},
           status = ${updatedData.status},
           updated_at = NOW()
         WHERE id = ${id}
         RETURNING *
       `
-      return updatedTransaction
+      
+      // Map transaction_date to date for frontend compatibility
+      return {
+        ...updatedTransaction,
+        date: updatedTransaction.transaction_date,
+        createdAt: updatedTransaction.created_at
+      }
     } catch (error) {
       console.error("Error updating transaction:", error)
       throw error
@@ -1116,7 +1123,17 @@ export const transactionsService = {
         LEFT JOIN clients c ON t.client_id = c.id
         WHERE t.id = ${id}
       `
-      return transaction
+      
+      if (!transaction) {
+        return null
+      }
+      
+      // Map transaction_date to date for frontend compatibility
+      return {
+        ...transaction,
+        date: transaction.transaction_date,
+        createdAt: transaction.created_at
+      }
     } catch (error) {
       console.error("Error fetching transaction:", error)
       throw error

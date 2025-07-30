@@ -99,28 +99,20 @@ export async function POST(request: NextRequest) {
       )
     }
     
-    // Prepare transaction data
+    // Prepare transaction data (only using columns that exist in the database)
     const transactionData = {
       type: body.type,
       amount: amount,
       category: body.category.trim(),
       description: body.description.trim(),
-      date: body.date,
+      transaction_date: body.date,
       project_id: body.projectId || body.project_id || null,
       client_id: body.clientId || body.client_id || null,
       invoice_id: body.invoiceId || body.invoice_id || null,
-      receipt_url: body.receiptUrl || body.receipt_url || null,
-      tax_amount: parseFloat(body.taxAmount || body.tax_amount || '0'),
-      tax_rate: parseFloat(body.taxRate || body.tax_rate || '0'),
-      payment_method: body.paymentMethod || body.payment_method || null,
-      reference_number: body.referenceNumber || body.reference_number || null,
-      notes: body.notes || null,
-      tags: Array.isArray(body.tags) ? body.tags : [],
-      is_recurring: Boolean(body.isRecurring || body.is_recurring),
-      recurring_frequency: body.recurringFrequency || body.recurring_frequency || null,
-      recurring_end_date: body.recurringEndDate || body.recurring_end_date || null,
       status: body.status || 'completed',
-      created_by: body.createdBy || body.created_by || null
+      notes: body.notes || null,
+      payment_method: body.paymentMethod || body.payment_method || null,
+      reference_number: body.referenceNumber || body.reference_number || null
     }
     
     const newTransaction = await transactionsService.create(transactionData)
