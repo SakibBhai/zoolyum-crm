@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import * as XLSX from 'xlsx'
 import {
   Plus,
   TrendingUp,
@@ -178,32 +179,69 @@ export function EnhancedFinanceOverview() {
   const handleExportData = () => {
     const dataToExport = activeView === 'standard' ? transactions : enhancedTransactions
 
-    // Include financial summary for standard view
-    const exportData = activeView === 'standard' ? {
-      transactions: dataToExport,
-      summary: financialSummary,
-      exportDate: new Date().toISOString(),
-      totalTransactions: dataToExport.length
-    } : {
-      transactions: dataToExport,
-      exportDate: new Date().toISOString(),
-      totalTransactions: dataToExport.length
+    // Prepare data for Excel export
+    const excelData = dataToExport.map((transaction: any) => ({
+      'Transaction ID': transaction.id,
+      'Date': new Date(transaction.transaction_date || transaction.date).toLocaleDateString(),
+      'Type': transaction.type,
+      'Category': transaction.category,
+      'Description': transaction.description,
+      'Amount': transaction.amount,
+      'Status': transaction.status || 'N/A',
+      'Payment Method': transaction.payment_method || 'N/A',
+      'Reference Number': transaction.reference_number || 'N/A',
+      'Notes': transaction.notes || 'N/A',
+      'Client': transaction.client?.name || 'N/A',
+      'Project': transaction.project?.title || 'N/A'
+    }))
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(excelData)
+
+    // Set column widths
+    const colWidths = [
+      { wch: 15 }, // Transaction ID
+      { wch: 12 }, // Date
+      { wch: 10 }, // Type
+      { wch: 15 }, // Category
+      { wch: 25 }, // Description
+      { wch: 12 }, // Amount
+      { wch: 12 }, // Status
+      { wch: 15 }, // Payment Method
+      { wch: 15 }, // Reference Number
+      { wch: 20 }, // Notes
+      { wch: 15 }, // Client
+      { wch: 20 }  // Project
+    ]
+    ws['!cols'] = colWidths
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Transactions')
+
+    // Add summary sheet for standard view
+    if (activeView === 'standard' && financialSummary) {
+      const summaryData = [
+        { 'Metric': 'Total Income', 'Value': financialSummary.totalIncome },
+        { 'Metric': 'Total Expenses', 'Value': financialSummary.totalExpenses },
+        { 'Metric': 'Net Profit', 'Value': financialSummary.netProfit },
+        { 'Metric': 'Total Transactions', 'Value': dataToExport.length },
+        { 'Metric': 'Export Date', 'Value': new Date().toLocaleDateString() }
+      ]
+      const summaryWs = XLSX.utils.json_to_sheet(summaryData)
+      summaryWs['!cols'] = [{ wch: 20 }, { wch: 15 }]
+      XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary')
     }
 
-    const dataStr = JSON.stringify(exportData, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `${activeView}-finance-data-${new Date().toISOString().split('T')[0]}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    // Generate filename with current date
+    const filename = `${activeView}-finance-data-${new Date().toISOString().split('T')[0]}.xlsx`
+
+    // Save file
+    XLSX.writeFile(wb, filename)
 
     toast({
       title: "Data Exported",
-      description: `Your ${activeView} financial data has been exported successfully.`,
+      description: `Your ${activeView} financial data has been exported to Excel successfully.`,
     })
   }
 

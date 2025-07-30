@@ -13,6 +13,7 @@ import { MonthlyAudit } from "./monthly-audit"
 import { TransactionFilters } from "./transaction-filters"
 import { FinancialCharts } from "./financial-charts"
 import { useToast } from "@/components/ui/use-toast"
+import * as XLSX from 'xlsx'
 
 export interface Transaction {
   id: string
@@ -113,20 +114,45 @@ export function FinanceOverview() {
   }
 
   const handleExportData = () => {
-    const dataStr = JSON.stringify(transactions, null, 2)
-    const dataBlob = new Blob([dataStr], { type: 'application/json' })
-    const url = URL.createObjectURL(dataBlob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `finance-data-${new Date().toISOString().split('T')[0]}.json`
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-    URL.revokeObjectURL(url)
+    // Prepare data for Excel export
+    const excelData = transactions.map(transaction => ({
+      'Transaction ID': transaction.id,
+      'Date': new Date(transaction.date).toLocaleDateString(),
+      'Type': transaction.type,
+      'Category': transaction.category,
+      'Description': transaction.description,
+      'Amount': transaction.amount,
+      'Created At': new Date(transaction.createdAt).toLocaleDateString()
+    }))
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new()
+    const ws = XLSX.utils.json_to_sheet(excelData)
+
+    // Set column widths
+    const colWidths = [
+      { wch: 15 }, // Transaction ID
+      { wch: 12 }, // Date
+      { wch: 10 }, // Type
+      { wch: 15 }, // Category
+      { wch: 25 }, // Description
+      { wch: 12 }, // Amount
+      { wch: 15 }  // Created At
+    ]
+    ws['!cols'] = colWidths
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Transactions')
+
+    // Generate filename with current date
+    const filename = `finance-data-${new Date().toISOString().split('T')[0]}.xlsx`
+
+    // Save file
+    XLSX.writeFile(wb, filename)
     
     toast({
       title: "Data Exported",
-      description: "Your financial data has been exported successfully.",
+      description: "Your financial data has been exported to Excel successfully.",
     })
   }
 
