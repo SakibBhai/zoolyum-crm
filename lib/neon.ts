@@ -11,7 +11,7 @@ if (typeof window === 'undefined' && !process.env.NEXT_RUNTIME) {
 }
 
 // Use DATABASE_URL (Prisma standard) with fallback to legacy variable
-const databaseUrl = process.env.DATABASE_URL || process.env.NEON_NEON_DATABASE_URL || process.env.NEON_DATABASE_URL;
+let databaseUrl = process.env.DATABASE_URL || process.env.NEON_NEON_DATABASE_URL || process.env.NEON_DATABASE_URL;
 
 if (!databaseUrl) {
   throw new Error(
@@ -19,6 +19,9 @@ if (!databaseUrl) {
     'DATABASE_URL, NEON_NEON_DATABASE_URL, or NEON_DATABASE_URL'
   );
 }
+
+// Remove channel_binding parameter that causes issues with @neondatabase/serverless
+databaseUrl = databaseUrl.replace(/[&?]channel_binding=require/g, '');
 
 const sql = neon(databaseUrl);
 

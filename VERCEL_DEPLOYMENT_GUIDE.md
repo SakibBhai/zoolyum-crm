@@ -23,21 +23,23 @@ git push origin main
 **Database Configuration:**
 ```
 Name: DATABASE_URL
-Value: postgresql://neondb_owner:npg_gfXwAK8CL2tb@ep-cool-resonance-adrhpfph-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+Value: postgresql://neondb_owner:npg_gfXwAK8CL2tb@ep-cool-resonance-adrhpfph-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
 Environments: Production, Preview, Development
 ```
 
 ```
 Name: NEON_DATABASE_URL
-Value: postgresql://neondb_owner:npg_gfXwAK8CL2tb@ep-cool-resonance-adrhpfph-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+Value: postgresql://neondb_owner:npg_gfXwAK8CL2tb@ep-cool-resonance-adrhpfph-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
 Environments: Production, Preview, Development
 ```
 
 ```
 Name: NEON_NEON_DATABASE_URL
-Value: postgresql://neondb_owner:npg_gfXwAK8CL2tb@ep-cool-resonance-adrhpfph-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+Value: postgresql://neondb_owner:npg_gfXwAK8CL2tb@ep-cool-resonance-adrhpfph-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require
 Environments: Production, Preview, Development
 ```
+
+**Important Note:** Remove `&channel_binding=require` from your Neon connection strings when setting them in Vercel, as this parameter is not compatible with the @neondatabase/serverless package used in production. The application will handle this automatically, but it's best to configure the environment variables without this parameter.
 
 **Authentication Configuration:**
 ```
