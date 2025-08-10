@@ -1,11 +1,4 @@
 {
-  "build": {
-    "env": {
-      "DATABASE_URL": "@neon-db-url",
-      "NEXTAUTH_SECRET": "@auth-secret",
-      "JWT_SECRET": "@jwt-secret"
-    }
-  },
   "buildCommand": "npm run build",
   "installCommand": "npm install"
 }
