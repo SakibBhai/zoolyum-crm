@@ -133,26 +133,30 @@ export async function PUT(request: NextRequest) {
             )
         }
 
-        const updateFields = Object.keys(updates)
-            .filter(key => updates[key] !== undefined)
-            .map((key, index) => `${key} = $${index + 2}`)
-            .join(', ')
-
-        if (updateFields.length === 0) {
+        const validUpdates = Object.keys(updates).filter(key => updates[key] !== undefined)
+        
+        if (validUpdates.length === 0) {
             return NextResponse.json(
                 { error: 'No valid fields to update' },
                 { status: 400 }
             )
         }
 
-        const values = [id, ...Object.values(updates).filter(val => val !== undefined)]
+        // Build the SET clause dynamically
+        const setClause = validUpdates.map(key => {
+            const value = updates[key]
+            if (typeof value === 'string') {
+                return `${key} = '${value.replace(/'/g, "''")}'`
+            }
+            return `${key} = ${value}`
+        }).join(', ')
 
         const [updatedEntry] = await sql`
       UPDATE content_calendar 
-      SET ${sql.unsafe(updateFields)}, updated_at = CURRENT_TIMESTAMP
-      WHERE id = $1
+      SET ${sql.unsafe(setClause)}, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ${id}
       RETURNING *
-    `.apply(null, values)
+    `
 
         if (!updatedEntry) {
             return NextResponse.json(
