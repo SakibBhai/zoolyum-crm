@@ -1150,11 +1150,11 @@ export const transactionsService = {
       let whereConditions = ["status = 'completed'"]
 
       if (params?.dateFrom) {
-        whereConditions.push(`date >= '${params.dateFrom}'`)
+        whereConditions.push(`transaction_date >= '${params.dateFrom}'`)
       }
 
       if (params?.dateTo) {
-        whereConditions.push(`date <= '${params.dateTo}'`)
+        whereConditions.push(`transaction_date <= '${params.dateTo}'`)
       }
 
       if (params?.projectId) {
@@ -1199,20 +1199,35 @@ export const transactionsService = {
 
   async getMonthlyTotals(year?: number) {
     try {
-      const yearFilter = year ? `WHERE EXTRACT(YEAR FROM date) = ${year}` : ''
-
-      const monthlyData = await sql`
-        SELECT 
-          DATE_TRUNC('month', date) as month,
-          SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-          SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expenses,
-          SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as net_amount
-        FROM transactions 
-        WHERE status = 'completed' ${year ? `AND EXTRACT(YEAR FROM date) = ${year}` : ''}
-        GROUP BY DATE_TRUNC('month', date)
-        ORDER BY month DESC
-        LIMIT 12
-      `
+      let monthlyData;
+      
+      if (year) {
+        monthlyData = await sql`
+          SELECT 
+            DATE_TRUNC('month', transaction_date) as month,
+            SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
+            SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expenses,
+            SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as net_amount
+          FROM transactions 
+          WHERE status = 'completed' AND EXTRACT(YEAR FROM transaction_date) = ${year}
+          GROUP BY DATE_TRUNC('month', transaction_date)
+          ORDER BY month DESC
+          LIMIT 12
+        `
+      } else {
+        monthlyData = await sql`
+          SELECT 
+            DATE_TRUNC('month', transaction_date) as month,
+            SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
+            SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expenses,
+            SUM(CASE WHEN type = 'income' THEN amount ELSE -amount END) as net_amount
+          FROM transactions 
+          WHERE status = 'completed'
+          GROUP BY DATE_TRUNC('month', transaction_date)
+          ORDER BY month DESC
+          LIMIT 12
+        `
+      }
 
       return monthlyData
     } catch (error) {
@@ -1223,19 +1238,32 @@ export const transactionsService = {
 
   async getCategories(type?: 'income' | 'expense') {
     try {
-      const typeFilter = type ? `WHERE type = '${type}'` : ''
-
-      const categories = await sql`
-        SELECT 
-          category,
-          type,
-          COUNT(*) as transaction_count,
-          SUM(amount) as total_amount
-        FROM transactions
-        ${type ? sql.unsafe(typeFilter) : sql``}
-        GROUP BY category, type
-        ORDER BY total_amount DESC
-      `
+      let categories;
+      
+      if (type) {
+        categories = await sql`
+          SELECT 
+            category,
+            type,
+            COUNT(*) as transaction_count,
+            SUM(amount) as total_amount
+          FROM transactions
+          WHERE type = ${type}
+          GROUP BY category, type
+          ORDER BY total_amount DESC
+        `
+      } else {
+        categories = await sql`
+          SELECT 
+            category,
+            type,
+            COUNT(*) as transaction_count,
+            SUM(amount) as total_amount
+          FROM transactions
+          GROUP BY category, type
+          ORDER BY total_amount DESC
+        `
+      }
 
       return categories
     } catch (error) {

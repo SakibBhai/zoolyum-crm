@@ -27,7 +27,7 @@ import {
   AlertCircle
 } from "lucide-react"
 import { EnhancedTransactionForm, EnhancedTransaction } from "./enhanced-transaction-form"
-import { TransactionForm } from "./transaction-form"
+
 import { Transaction } from "./finance-overview"
 import { TransactionList } from "./transaction-list"
 import { FinancialSummary } from "./financial-summary"
@@ -88,29 +88,74 @@ export function EnhancedFinanceOverview() {
   const [enhancedTransactions, setEnhancedTransactions] = useState<EnhancedTransaction[]>([])
 
   // UI state
-  const [showTransactionForm, setShowTransactionForm] = useState(false)
   const [showEnhancedForm, setShowEnhancedForm] = useState(false)
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [editingEnhancedTransaction, setEditingEnhancedTransaction] = useState<EnhancedTransaction | null>(null)
   const [filters, setFilters] = useState<FilterOptions>(defaultFilters)
   const [showFilters, setShowFilters] = useState(false)
-  const [activeView, setActiveView] = useState<'standard' | 'enterprise'>('enterprise')
 
-  // Load enhanced transactions from localStorage (keeping for backward compatibility)
+  // Load enhanced transactions from database and merge with localStorage enhanced features
   useEffect(() => {
-    const savedEnhancedTransactions = localStorage.getItem('enhanced-finance-transactions')
-    if (savedEnhancedTransactions) {
+    const loadEnhancedTransactions = async () => {
       try {
-        setEnhancedTransactions(JSON.parse(savedEnhancedTransactions))
+        // Get enhanced transaction metadata from localStorage
+        const savedEnhancedMeta = localStorage.getItem('enhanced-finance-transactions')
+        const enhancedMeta = savedEnhancedMeta ? JSON.parse(savedEnhancedMeta) : []
+        
+        // Convert standard transactions to enhanced format with additional features
+        const enhancedFromDb = transactions.map(transaction => {
+          // Find matching enhanced metadata
+          const enhancedData = enhancedMeta.find((meta: any) => meta.id === transaction.id)
+          
+          return {
+            id: transaction.id,
+            type: transaction.type,
+            amount: transaction.amount,
+            currency: 'BDT', // Default currency
+            category: transaction.category,
+            description: transaction.description,
+            date: transaction.date,
+            paymentMethod: 'Bank Transfer', // Default payment method
+            attachments: [],
+            isRecurring: false,
+            isConfidential: false,
+            tags: [],
+            createdAt: transaction.createdAt,
+            // Merge any enhanced features from localStorage
+            ...enhancedData
+          } as EnhancedTransaction
+        })
+        
+        setEnhancedTransactions(enhancedFromDb)
       } catch (error) {
         console.error('Error loading enhanced transactions:', error)
       }
     }
-  }, [])
+    
+    if (transactions.length > 0) {
+      loadEnhancedTransactions()
+    }
+  }, [transactions])
 
-  // Save enhanced transactions to localStorage
+  // Save enhanced transaction metadata to localStorage (only enhanced features)
   useEffect(() => {
-    localStorage.setItem('enhanced-finance-transactions', JSON.stringify(enhancedTransactions))
+    const enhancedMeta = enhancedTransactions.map(transaction => ({
+      id: transaction.id,
+      currency: transaction.currency,
+      exchangeRate: transaction.exchangeRate,
+      originalAmount: transaction.originalAmount,
+      originalCurrency: transaction.originalCurrency,
+      customCategory: transaction.customCategory,
+      richDescription: transaction.richDescription,
+      dueDate: transaction.dueDate,
+      paymentMethod: transaction.paymentMethod,
+      vendorClient: transaction.vendorClient,
+      attachments: transaction.attachments,
+      isRecurring: transaction.isRecurring,
+      recurringPattern: transaction.recurringPattern,
+      isConfidential: transaction.isConfidential,
+      tags: transaction.tags
+    }))
+    localStorage.setItem('enhanced-finance-transactions', JSON.stringify(enhancedMeta))
   }, [enhancedTransactions])
 
   // Fetch financial summary and categories on mount
@@ -119,24 +164,9 @@ export function EnhancedFinanceOverview() {
     fetchCategories()
   }, [fetchFinancialSummary, fetchCategories])
 
-  const handleAddTransaction = async (transaction: Omit<Transaction, 'id' | 'createdAt'>) => {
-    const result = await createTransaction({
-      type: transaction.type,
-      amount: transaction.amount,
-      category: transaction.category,
-      description: transaction.description,
-      date: transaction.date || new Date().toISOString().split('T')[0],
-      createdAt: new Date().toISOString()
-    })
 
-    if (result) {
-      setShowTransactionForm(false)
-      // Refresh financial summary
-      fetchFinancialSummary()
-    }
-  }
 
-  const handleAddEnhancedTransaction = (transaction: Omit<EnhancedTransaction, 'id' | 'createdAt'>) => {
+  const handleAddEnhancedTransaction = async (transaction: Omit<EnhancedTransaction, 'id' | 'createdAt'>) => {
     // Generate a simple UUID-like string for compatibility
     const generateId = () => {
       return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
@@ -146,120 +176,111 @@ export function EnhancedFinanceOverview() {
       });
     };
 
-    const newTransaction: EnhancedTransaction = {
-      ...transaction,
-      id: generateId(),
+    // Also save to database for persistence first
+    const standardTransaction = {
+      type: transaction.type,
+      amount: transaction.amount,
+      category: transaction.customCategory || transaction.category,
+      description: transaction.description,
+      date: transaction.date,
       createdAt: new Date().toISOString()
     }
-    setEnhancedTransactions(prev => [newTransaction, ...prev])
-    setShowEnhancedForm(false)
-    toast({
-      title: "✨ Enhanced Transaction Added",
-      description: `${transaction.type === 'income' ? 'Income' : 'Expense'} of ${transaction.currency === 'BDT' ? '৳' : '$'}${transaction.amount.toLocaleString()} with enterprise features.`,
-    })
+
+    const result = await createTransaction(standardTransaction)
+    
+    if (result) {
+      // Use the database ID for the enhanced transaction
+      const newTransaction: EnhancedTransaction = {
+        ...transaction,
+        id: result.id, // Use database ID instead of generated ID
+        createdAt: result.createdAt || new Date().toISOString()
+      }
+
+      // Save to localStorage for enhanced features
+      setEnhancedTransactions(prev => [newTransaction, ...prev])
+      
+      setShowEnhancedForm(false)
+      // Refresh financial summary
+      fetchFinancialSummary()
+      toast({
+        title: "✨ Enhanced Transaction Added",
+        description: `${transaction.type === 'income' ? 'Income' : 'Expense'} of ${transaction.currency === 'BDT' ? '৳' : '$'}${transaction.amount.toLocaleString()} saved to database with enterprise features.`,
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to save transaction to database. Please try again.",
+        variant: "destructive"
+      })
+    }
   }
 
   const handleDeleteTransaction = async (id: string) => {
-    if (activeView === 'standard') {
-      const success = await deleteTransaction(id)
-      if (success) {
-        // Refresh financial summary
-        fetchFinancialSummary()
-      }
-    } else {
+    // For enhanced transactions, delete from both database and localStorage
+    const success = await deleteTransaction(id)
+    if (success) {
       setEnhancedTransactions(prev => prev.filter(t => t.id !== id))
+      // Refresh financial summary
+      fetchFinancialSummary()
       toast({
         title: "Transaction Deleted",
-        description: "Enhanced transaction has been successfully deleted.",
+        description: "Enhanced transaction has been successfully deleted from database.",
+        variant: "destructive"
+      })
+    } else {
+      toast({
+        title: "Error",
+        description: "Failed to delete transaction from database. Please try again.",
         variant: "destructive"
       })
     }
   }
 
   const handleExportData = () => {
-    const dataToExport = activeView === 'standard' ? transactions : enhancedTransactions
-
-    // Prepare data for Excel export
-    const excelData = dataToExport.map((transaction: any) => ({
-      'Transaction ID': transaction.id,
-      'Date': new Date(transaction.transaction_date || transaction.date).toLocaleDateString(),
-      'Type': transaction.type,
-      'Category': transaction.category,
-      'Description': transaction.description,
-      'Amount': transaction.amount,
-      'Status': transaction.status || 'N/A',
-      'Payment Method': transaction.payment_method || 'N/A',
-      'Reference Number': transaction.reference_number || 'N/A',
-      'Notes': transaction.notes || 'N/A',
-      'Client': transaction.client?.name || 'N/A',
-      'Project': transaction.project?.title || 'N/A'
+    // Export enhanced transactions with all fields
+    const exportData = (enhancedTransactions || []).map(transaction => ({
+      Date: transaction.date,
+      Type: transaction.type,
+      Category: transaction.category,
+      'Sub Type': transaction.subType || '',
+      'Custom Category': transaction.customCategory || '',
+      Description: transaction.description,
+      'Rich Description': transaction.richDescription || '',
+      Amount: transaction.amount,
+      Currency: transaction.currency,
+      'Exchange Rate': transaction.exchangeRate || '',
+      'Original Amount': transaction.originalAmount || '',
+      'Original Currency': transaction.originalCurrency || '',
+      'Payment Method': transaction.paymentMethod,
+      'Vendor/Client': transaction.vendorClient || '',
+      'Due Date': transaction.dueDate || '',
+      'Is Recurring': transaction.isRecurring ? 'Yes' : 'No',
+      'Recurring Pattern': transaction.recurringPattern ? JSON.stringify(transaction.recurringPattern) : '',
+      'Is Confidential': transaction.isConfidential ? 'Yes' : 'No',
+      'Tags': transaction.tags?.join(', ') || '',
+      'Attachments': transaction.attachments?.length || 0,
+      'Created At': transaction.createdAt,
+      'Updated At': transaction.updatedAt || ''
     }))
 
-    // Create workbook and worksheet
+    const ws = XLSX.utils.json_to_sheet(exportData)
     const wb = XLSX.utils.book_new()
-    const ws = XLSX.utils.json_to_sheet(excelData)
-
-    // Set column widths
-    const colWidths = [
-      { wch: 15 }, // Transaction ID
-      { wch: 12 }, // Date
-      { wch: 10 }, // Type
-      { wch: 15 }, // Category
-      { wch: 25 }, // Description
-      { wch: 12 }, // Amount
-      { wch: 12 }, // Status
-      { wch: 15 }, // Payment Method
-      { wch: 15 }, // Reference Number
-      { wch: 20 }, // Notes
-      { wch: 15 }, // Client
-      { wch: 20 }  // Project
-    ]
-    ws['!cols'] = colWidths
-
-    // Add worksheet to workbook
-    XLSX.utils.book_append_sheet(wb, ws, 'Transactions')
-
-    // Add summary sheet for standard view
-    if (activeView === 'standard' && financialSummary) {
-      const summaryData = [
-        { 'Metric': 'Total Income', 'Value': financialSummary.totalIncome },
-        { 'Metric': 'Total Expenses', 'Value': financialSummary.totalExpenses },
-        { 'Metric': 'Net Profit', 'Value': financialSummary.netProfit },
-        { 'Metric': 'Total Transactions', 'Value': dataToExport.length },
-        { 'Metric': 'Export Date', 'Value': new Date().toLocaleDateString() }
-      ]
-      const summaryWs = XLSX.utils.json_to_sheet(summaryData)
-      summaryWs['!cols'] = [{ wch: 20 }, { wch: 15 }]
-      XLSX.utils.book_append_sheet(wb, summaryWs, 'Summary')
-    }
-
-    // Generate filename with current date
-    const filename = `${activeView}-finance-data-${new Date().toISOString().split('T')[0]}.xlsx`
-
-    // Save file
-    XLSX.writeFile(wb, filename)
+    XLSX.utils.book_append_sheet(wb, ws, 'Enhanced Transactions')
+    XLSX.writeFile(wb, `enhanced-transactions-${new Date().toISOString().split('T')[0]}.xlsx`)
 
     toast({
       title: "Data Exported",
-      description: `Your ${activeView} financial data has been exported to Excel successfully.`,
+      description: `Successfully exported ${(enhancedTransactions || []).length} transactions to Excel.`,
     })
   }
 
-  // Calculate summary statistics for current view
-  const currentTransactions = activeView === 'standard' ? (transactions || []) : (enhancedTransactions || [])
+  // Calculate summary statistics for enterprise view
+  const currentTransactions = enhancedTransactions || []
 
-  // Use API financial summary for standard view, calculate for enhanced view
-  const totalIncome = activeView === 'standard' && financialSummary
-    ? financialSummary.totalIncome
-    : currentTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
-
-  const totalExpenses = activeView === 'standard' && financialSummary
-    ? financialSummary.totalExpenses
-    : currentTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)
-
-  const netBalance = activeView === 'standard' && financialSummary
-    ? financialSummary.netAmount
-    : totalIncome - totalExpenses
+  // Calculate financial summary for enhanced view
+  const totalIncome = currentTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0)
+  const totalExpenses = currentTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0)
+  const netBalance = totalIncome - totalExpenses
 
   // Enhanced transaction statistics
   const enhancedStats = {
@@ -272,17 +293,12 @@ export function EnhancedFinanceOverview() {
 
   return (
     <div className="space-y-6">
-      {/* View Toggle */}
+      {/* Header Actions */}
       <div className="flex items-center justify-between">
-        <Tabs value={activeView} onValueChange={(value) => setActiveView(value as 'standard' | 'enterprise')}>
-          <TabsList>
-            <TabsTrigger value="standard">Standard View</TabsTrigger>
-            <TabsTrigger value="enterprise" className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4" />
-              Enterprise View
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-blue-500" />
+          <h2 className="text-lg font-semibold">Enterprise Finance Management</h2>
+        </div>
 
         <div className="flex gap-2">
           <Button
@@ -305,32 +321,13 @@ export function EnhancedFinanceOverview() {
       </div>
 
       {/* Enterprise Features Alert */}
-      {activeView === 'enterprise' && (
-        <Alert>
-          <Sparkles className="h-4 w-4" />
-          <AlertDescription>
-            You're viewing the enterprise-grade financial management system with advanced features like multi-currency support,
-            AI categorization, recurring transactions, and document attachments.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {/* Loading State */}
-      {loading && activeView === 'standard' && (
-        <Alert>
-          <div className="flex items-center gap-2">
-            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-            <span>Loading financial data...</span>
-          </div>
-        </Alert>
-      )}
-
-      {/* Error State */}
-      {error && activeView === 'standard' && (
-        <Alert variant="destructive">
-          <AlertDescription>{error}</AlertDescription>
-        </Alert>
-      )}
+      <Alert>
+        <Sparkles className="h-4 w-4" />
+        <AlertDescription>
+          You're viewing the enterprise-grade financial management system with advanced features like multi-currency support,
+          AI categorization, recurring transactions, and document attachments.
+        </AlertDescription>
+      </Alert>
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -340,19 +337,12 @@ export function EnhancedFinanceOverview() {
             <TrendingUp className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            {loading && activeView === 'standard' ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-green-600">৳{(totalIncome ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">
-                  {currentTransactions.filter(t => t.type === 'income').length} transactions
-                </p>
-              </>
-            )}
+            <>
+              <div className="text-2xl font-bold text-green-600">৳{(totalIncome ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <p className="text-xs text-muted-foreground">
+                {currentTransactions.filter(t => t.type === 'income').length} transactions
+              </p>
+            </>
           </CardContent>
         </Card>
 
@@ -362,19 +352,12 @@ export function EnhancedFinanceOverview() {
             <TrendingDown className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            {loading && activeView === 'standard' ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-red-600">৳{(totalExpenses ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
-                <p className="text-xs text-muted-foreground">
-                  {currentTransactions.filter(t => t.type === 'expense').length} transactions
-                </p>
-              </>
-            )}
+            <>
+              <div className="text-2xl font-bold text-red-600">৳{(totalExpenses ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+              <p className="text-xs text-muted-foreground">
+                {currentTransactions.filter(t => t.type === 'expense').length} transactions
+              </p>
+            </>
           </CardContent>
         </Card>
 
@@ -384,22 +367,15 @@ export function EnhancedFinanceOverview() {
             <DollarSign className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            {loading && activeView === 'standard' ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+            <>
+              <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'
+                }`}>
+                ৳{(netBalance ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-            ) : (
-              <>
-                <div className={`text-2xl font-bold ${netBalance >= 0 ? 'text-green-600' : 'text-red-600'
-                  }`}>
-                  ৳{(netBalance ?? 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  {netBalance >= 0 ? 'Positive' : 'Negative'} balance
-                </p>
-              </>
-            )}
+              <p className="text-xs text-muted-foreground">
+                {netBalance >= 0 ? 'Positive' : 'Negative'} balance
+              </p>
+            </>
           </CardContent>
         </Card>
 
@@ -409,25 +385,18 @@ export function EnhancedFinanceOverview() {
             <Calendar className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            {loading && activeView === 'standard' ? (
-              <div className="animate-pulse">
-                <div className="h-8 bg-gray-200 rounded mb-2"></div>
-                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-              </div>
-            ) : (
-              <>
-                <div className="text-2xl font-bold text-purple-600">{currentTransactions.length}</div>
-                <p className="text-xs text-muted-foreground">
-                  {activeView === 'enterprise' ? 'Enterprise' : 'Standard'} records
-                </p>
-              </>
-            )}
+            <>
+              <div className="text-2xl font-bold text-purple-600">{currentTransactions.length}</div>
+              <p className="text-xs text-muted-foreground">
+                Enterprise records
+              </p>
+            </>
           </CardContent>
         </Card>
       </div>
 
       {/* Enterprise Stats */}
-      {activeView === 'enterprise' && (enhancedTransactions || []).length > 0 && (
+      {(enhancedTransactions || []).length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -482,40 +451,16 @@ export function EnhancedFinanceOverview() {
 
       {/* Action Buttons */}
       <div className="flex gap-4">
-        {activeView === 'standard' ? (
-          <>
-            <Button
-              onClick={() => setShowTransactionForm(true)}
-              disabled={creating}
-            >
-              {creating ? (
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-              ) : (
-                <Plus className="h-4 w-4 mr-2" />
-              )}
-              {creating ? 'Creating...' : 'Add Transaction'}
-            </Button>
-            <Link href="/dashboard/finance/add-transaction">
-              <Button variant="outline">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Transaction (Page)
-              </Button>
-            </Link>
-          </>
-        ) : (
-          <>
-            <Button onClick={() => setShowEnhancedForm(true)}>
-              <Sparkles className="h-4 w-4 mr-2" />
-              Add Enhanced Transaction
-            </Button>
-            <Link href="/dashboard/finance/add-transaction-enterprise">
-              <Button variant="outline">
-                <Sparkles className="h-4 w-4 mr-2" />
-                Add Enterprise Transaction (Page)
-              </Button>
-            </Link>
-          </>
-        )}
+        <Button onClick={() => setShowEnhancedForm(true)}>
+          <Sparkles className="h-4 w-4 mr-2" />
+          Add Enhanced Transaction
+        </Button>
+        <Link href="/dashboard/finance/add-transaction-enterprise">
+          <Button variant="outline">
+            <Sparkles className="h-4 w-4 mr-2" />
+            Add Enterprise Transaction (Page)
+          </Button>
+        </Link>
       </div>
 
       {/* Filters */}
@@ -528,22 +473,14 @@ export function EnhancedFinanceOverview() {
             <TransactionFilters
               filters={filters}
               onFiltersChange={setFilters}
-              transactions={activeView === 'standard' ? (transactions || []) : (enhancedTransactions || [])}
-            />
+              transactions={enhancedTransactions || []}
+          />
           </CardContent>
         </Card>
       )}
 
       {/* Error Display */}
-      {error && activeView === 'standard' && (
-        <Alert variant="destructive" className="mb-6">
-          <AlertCircle className="h-4 w-4" />
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
-            {error}
-          </AlertDescription>
-        </Alert>
-      )}
+
 
       {/* Main Content Tabs */}
       <Tabs defaultValue="overview" className="space-y-4">
@@ -556,87 +493,30 @@ export function EnhancedFinanceOverview() {
 
         <TabsContent value="overview" className="space-y-4">
           <div className="grid gap-6 md:grid-cols-2">
-            <FinancialSummary transactions={activeView === 'standard' ? transactions : enhancedTransactions} />
-            <FinancialCharts transactions={activeView === 'standard' ? transactions : enhancedTransactions} />
+            <FinancialSummary transactions={enhancedTransactions} />
+            <FinancialCharts transactions={enhancedTransactions} />
           </div>
         </TabsContent>
 
         <TabsContent value="transactions">
-          {loading && activeView === 'standard' ? (
-            <Card>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                    <span>Loading transactions...</span>
-                  </div>
-                  {/* Loading skeleton */}
-                  {Array.from({ length: 5 }).map((_, index) => (
-                    <div key={`skeleton-${index}`} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="space-y-2 flex-1">
-                        <div className="animate-pulse h-4 bg-gray-200 rounded w-1/3"></div>
-                        <div className="animate-pulse h-3 bg-gray-200 rounded w-1/2"></div>
-                      </div>
-                      <div className="animate-pulse h-6 bg-gray-200 rounded w-20"></div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <TransactionList
-              transactions={activeView === 'standard' ? transactions : enhancedTransactions}
-              onEdit={activeView === 'standard' ?
-                (t) => { setEditingTransaction(t as Transaction); setShowTransactionForm(true); } :
-                (t) => { setEditingEnhancedTransaction(t as EnhancedTransaction); setShowEnhancedForm(true); }
-              }
-              onDelete={handleDeleteTransaction}
-              filters={filters}
-            />
-          )}
+          <TransactionList
+            transactions={enhancedTransactions}
+            onEdit={(t) => { setEditingEnhancedTransaction(t as EnhancedTransaction); setShowEnhancedForm(true); }}
+            onDelete={handleDeleteTransaction}
+            filters={filters}
+          />
         </TabsContent>
 
         <TabsContent value="analytics">
-          <FinancialCharts transactions={activeView === 'standard' ? transactions : enhancedTransactions} />
+          <FinancialCharts transactions={enhancedTransactions} />
         </TabsContent>
 
         <TabsContent value="reports">
-          <MonthlyAudit transactions={activeView === 'standard' ? transactions : enhancedTransactions} />
+          <MonthlyAudit transactions={enhancedTransactions} />
         </TabsContent>
       </Tabs>
 
-      {/* Transaction Forms */}
-      {showTransactionForm && (
-        <TransactionForm
-          transaction={editingTransaction}
-          onSubmit={editingTransaction ?
-            async (updatedTransaction) => {
-              const success = await updateTransaction(editingTransaction.id, {
-                type: updatedTransaction.type,
-                amount: updatedTransaction.amount,
-                category: updatedTransaction.category,
-                description: updatedTransaction.description,
-                date: updatedTransaction.date
-              })
-
-              if (success) {
-                setEditingTransaction(null)
-                setShowTransactionForm(false)
-                fetchFinancialSummary() // Refresh summary
-                toast({
-                  title: "Transaction Updated",
-                  description: "Transaction has been successfully updated.",
-                })
-              }
-            } : handleAddTransaction
-          }
-          onCancel={() => {
-            setShowTransactionForm(false)
-            setEditingTransaction(null)
-          }}
-        />
-      )}
-
+      {/* Enhanced Transaction Form */}
       {showEnhancedForm && (
         <EnhancedTransactionForm
           transaction={editingEnhancedTransaction}
