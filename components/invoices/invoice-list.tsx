@@ -353,6 +353,11 @@ export function InvoiceList() {
       {/* Preview Dialog */}
       <Dialog open={showPreviewDialog} onOpenChange={setShowPreviewDialog}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              Invoice Preview - {selectedInvoice?.invoiceNumber}
+            </DialogTitle>
+          </DialogHeader>
           {selectedInvoice && <InvoicePreview invoice={selectedInvoice} />}
         </DialogContent>
       </Dialog>

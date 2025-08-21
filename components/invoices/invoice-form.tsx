@@ -22,7 +22,7 @@ import { z } from "zod"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm, Controller } from "react-hook-form"
 import { Progress } from "@/components/ui/progress"
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Switch } from "@/components/ui/switch"
 
 // Validation schema
@@ -484,6 +484,9 @@ export function InvoiceForm({ clientId, projectId, invoice, isEditing = false }:
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[90vh]">
+                <DialogHeader>
+                  <DialogTitle>Invoice Preview</DialogTitle>
+                </DialogHeader>
                 <InvoicePreview />
               </DialogContent>
             </Dialog>

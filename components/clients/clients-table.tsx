@@ -53,6 +53,14 @@ export function ClientsTable({ onAddProject }: ClientsTableProps) {
   const [clients, setClients] = useState<Client[]>([])
   const [stats, setStats] = useState<ClientStats | null>(null)
   const [industries, setIndustries] = useState<string[]>([])
+  
+  // Loading and error states
+  const [isLoadingClients, setIsLoadingClients] = useState(false)
+  const [isLoadingStats, setIsLoadingStats] = useState(false)
+  const [isLoadingIndustries, setIsLoadingIndustries] = useState(false)
+  const [clientsError, setClientsError] = useState<string | null>(null)
+  const [statsError, setStatsError] = useState<string | null>(null)
+  const [industriesError, setIndustriesError] = useState<string | null>(null)
   const [pagination, setPagination] = useState<Pagination | null>(null)
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -67,15 +75,80 @@ export function ClientsTable({ onAddProject }: ClientsTableProps) {
   
   const debouncedSearchTerm = useDebounce(searchTerm, 300)
 
-  // Fetch clients with pagination and filters
-  const fetchClients = useCallback(async (refresh = false) => {
-    try {
-      if (refresh) {
-        setIsRefreshing(true)
-      } else {
-        setIsLoading(true)
+  // Enhanced fetch function with timeout and retry logic
+  const fetchWithTimeout = async (url: string, options: RequestInit = {}, timeout = 10000, retries = 3): Promise<Response> => {
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), timeout)
+    
+    const fetchOptions: RequestInit = {
+      ...options,
+      signal: controller.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache',
+        ...options.headers,
+      },
+    }
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const response = await fetch(url, fetchOptions)
+        clearTimeout(timeoutId)
+        
+        if (!response.ok) {
+          // Handle specific HTTP errors
+          if (response.status >= 500 && attempt < retries) {
+            // Server error - retry with exponential backoff
+            await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+            continue
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+        }
+        
+        return response
+      } catch (error) {
+        clearTimeout(timeoutId)
+        
+        if (error instanceof Error) {
+          // Network connectivity issues
+          if (error.name === 'AbortError') {
+            if (attempt < retries) {
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+              continue
+            }
+            throw new Error('Request timeout - please check your internet connection')
+          }
+          
+          // CORS or network errors
+          if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+            if (attempt < retries) {
+              await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
+              continue
+            }
+            throw new Error('Network error - please check your connection and try again')
+          }
+        }
+        
+        if (attempt === retries) {
+          throw error
+        }
+        
+        // Wait before retry
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, attempt) * 1000))
       }
-      
+    }
+    
+    throw new Error('Maximum retry attempts exceeded')
+  }
+
+  // Fetch clients with pagination and filtering
+  const fetchClients = useCallback(async () => {
+    setIsLoadingClients(true)
+    setClientsError(null)
+    setIsLoading(true)
+    setIsRefreshing(true)
+    
+    try {
       const params = new URLSearchParams({
         page: currentPage.toString(),
         limit: pageSize.toString(),
@@ -95,55 +168,93 @@ export function ClientsTable({ onAddProject }: ClientsTableProps) {
         params.append('industry', industryFilter)
       }
       
-      const response = await fetch(`/api/clients?${params.toString()}`)
-      
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-      
+      const response = await fetchWithTimeout(`/api/clients?${params.toString()}`)
       const data = await response.json()
+      
       setClients(data.clients || [])
       setPagination(data.pagination)
+      setClientsError(null)
     } catch (error) {
       console.error("Error fetching clients:", error)
+      const errorMessage = error instanceof Error ? error.message : "Unknown error occurred"
+      setClientsError(errorMessage)
+      
       toast({
-        title: "Error",
-        description: `Failed to load clients: ${error instanceof Error ? error.message : "Unknown error"}`,
+        title: "Failed to Load Clients",
+        description: errorMessage,
         variant: "destructive",
       })
+      
       setClients([])
       setPagination(null)
     } finally {
+      setIsLoadingClients(false)
       setIsLoading(false)
       setIsRefreshing(false)
     }
   }, [currentPage, pageSize, debouncedSearchTerm, statusFilter, industryFilter, sortBy, sortOrder, toast])
   
-  // Fetch client statistics
+  // Fetch client statistics with enhanced error handling
   const fetchStats = useCallback(async () => {
+    setIsLoadingStats(true)
+    setStatsError(null)
+    
     try {
-      const response = await fetch('/api/clients/stats')
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data)
-      }
+      const response = await fetchWithTimeout('/api/clients/stats')
+      const data = await response.json()
+      setStats(data)
+      setStatsError(null)
     } catch (error) {
       console.error("Error fetching client stats:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to load statistics"
+      setStatsError(errorMessage)
+      
+      toast({
+        title: "Statistics Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+      
+      // Set default stats on error
+      setStats({
+        total_clients: 0,
+        active_clients: 0,
+        inactive_clients: 0,
+        prospect_clients: 0,
+        unique_industries: 0
+      })
+    } finally {
+      setIsLoadingStats(false)
     }
-  }, [])
+  }, [toast])
   
-  // Fetch available industries
+  // Fetch available industries with enhanced error handling
   const fetchIndustries = useCallback(async () => {
+    setIsLoadingIndustries(true)
+    setIndustriesError(null)
+    
     try {
-      const response = await fetch('/api/clients/industries')
-      if (response.ok) {
-        const data = await response.json()
-        setIndustries(data)
-      }
+      const response = await fetchWithTimeout('/api/clients/industries')
+      const data = await response.json()
+      setIndustries(data)
+      setIndustriesError(null)
     } catch (error) {
       console.error("Error fetching industries:", error)
+      const errorMessage = error instanceof Error ? error.message : "Failed to load industries"
+      setIndustriesError(errorMessage)
+      
+      toast({
+        title: "Industries Error",
+        description: errorMessage,
+        variant: "destructive",
+      })
+      
+      // Set empty array on error
+      setIndustries([])
+    } finally {
+      setIsLoadingIndustries(false)
     }
-  }, [])
+  }, [toast])
   
   // Effects
   useEffect(() => {
@@ -153,7 +264,7 @@ export function ClientsTable({ onAddProject }: ClientsTableProps) {
   useEffect(() => {
     fetchStats()
     fetchIndustries()
-  }, [])
+  }, [fetchStats, fetchIndustries])
   
   // Reset to first page when filters change
   useEffect(() => {
@@ -164,7 +275,7 @@ export function ClientsTable({ onAddProject }: ClientsTableProps) {
 
   const deleteClient = useCallback(async (id: string, clientName: string) => {
     try {
-      const response = await fetch(`/api/clients/${id}`, {
+      const response = await fetchWithTimeout(`/api/clients/${id}`, {
         method: "DELETE",
       })
 
@@ -178,7 +289,7 @@ export function ClientsTable({ onAddProject }: ClientsTableProps) {
       })
 
       // Refresh the client list and stats
-      await Promise.all([fetchClients(true), fetchStats()])
+      await Promise.all([fetchClients(), fetchStats()])
     } catch (error) {
       console.error("Error deleting client:", error)
       toast({
@@ -199,7 +310,7 @@ export function ClientsTable({ onAddProject }: ClientsTableProps) {
   }, [sortBy, sortOrder])
   
   const handleRefresh = useCallback(() => {
-    Promise.all([fetchClients(true), fetchStats()])
+    Promise.all([fetchClients(), fetchStats()])
   }, [fetchClients, fetchStats])
   
   const clearFilters = useCallback(() => {

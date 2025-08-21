@@ -90,16 +90,16 @@ Zoolyum CRM is a modern, full-stack Customer Relationship Management system buil
 
 ### Prerequisites
 
-- Node.js 18+ and npm/pnpm
-- PostgreSQL database (Neon.tech recommended)
-- Git
+- **Node.js 18+** and npm/pnpm/yarn
+- **PostgreSQL database** (Neon.tech recommended for serverless)
+- **Git** for version control
 
 ### Installation
 
 1. **Clone the repository**
    ```bash
    git clone https://github.com/your-username/zoolyum-crm.git
-cd zoolyum-crm
+   cd zoolyum-crm
    ```
 
 2. **Install dependencies**
@@ -109,19 +109,32 @@ cd zoolyum-crm
    pnpm install
    ```
 
-3. **Environment setup**
+3. **Environment setup** (Automated)
    ```bash
-   cp .env.example .env.local
+   # Quick setup with generated secrets
+   npm run env:setup
    ```
    
-   Configure your environment variables:
+   Or manually:
+   ```bash
+   cp .env.template .env.local
+   ```
+   
+   **Required environment variables:**
    ```env
    DATABASE_URL="postgresql://username:password@host/database?sslmode=require"
-   NEXTAUTH_SECRET="your-secret-key"
+   NEXTAUTH_SECRET="your-generated-secret-key"
    NEXTAUTH_URL="http://localhost:3000"
+   NEXT_PUBLIC_APP_URL="http://localhost:3000"
+   NEXT_PUBLIC_API_URL="http://localhost:3000/api"
    ```
 
-4. **Database setup**
+4. **Validate environment**
+   ```bash
+   npm run env:validate
+   ```
+
+5. **Database setup**
    ```bash
    # Generate Prisma client
    npx prisma generate
@@ -129,19 +142,39 @@ cd zoolyum-crm
    # Run database migrations
    npx prisma db push
    
-   # (Optional) Seed the database
-   npx prisma db seed
+   # Test database connection
+   npm run test:db
    ```
 
-5. **Start development server**
+6. **Start development server**
    ```bash
    npm run dev
-   # or
-   pnpm dev
    ```
 
-6. **Open your browser**
+7. **Open your browser**
    Navigate to [http://localhost:3000](http://localhost:3000)
+
+### 🔧 Additional Setup Commands
+
+```bash
+# Complete setup (environment + dependencies)
+npm run setup
+
+# Health check (environment + database)
+npm run health:check
+
+# Environment validation only
+npm run env:check
+
+# Open Prisma Studio
+npm run db:studio
+```
+
+### 📚 Setup Documentation
+
+- **[Environment Setup Guide](./ENV_SETUP.md)** - Detailed environment configuration
+- **[Database Setup](./DATABASE_SETUP.md)** - Database configuration and migrations
+- **[Deployment Guide](./DEPLOYMENT.md)** - Production deployment instructions
 
 ## 📁 Project Structure
 

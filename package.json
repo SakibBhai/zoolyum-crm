@@ -14,7 +14,12 @@
     "db:studio": "prisma studio",
     "deploy": "node deploy-to-vercel.js",
     "deploy:check": "node deploy-to-vercel.js --check-only",
-    "test:db": "node test-db-connection.js"
+    "test:db": "node test-db-connection.js",
+    "env:setup": "node setup-env.js",
+    "env:validate": "node setup-env.js validate",
+    "env:check": "node setup-env.js check",
+    "setup": "npm run env:setup && npm install",
+    "health:check": "npm run env:validate && npm run test:db"
   },
   "dependencies": {
     "@hookform/resolvers": "latest",

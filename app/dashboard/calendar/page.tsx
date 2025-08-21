@@ -1,4 +1,4 @@
-import { ContentCalendarView } from "@/components/content-calendar-view"
+import { EnhancedCalendar } from "@/components/ui/enhanced-calendar"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -8,7 +8,10 @@ export default function CalendarPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <PageHeader heading="Content Calendar" subheading="Manage your social media content calendar." />
+        <PageHeader
+          title="Content Calendar"
+          description="Manage and schedule your content across all platforms"
+        />
         <Link href="/dashboard/calendar/new">
           <Button>
             <Plus className="mr-2 h-4 w-4" />
@@ -16,7 +19,7 @@ export default function CalendarPage() {
           </Button>
         </Link>
       </div>
-      <ContentCalendarView />
+      <EnhancedCalendar />
     </div>
   )
 }

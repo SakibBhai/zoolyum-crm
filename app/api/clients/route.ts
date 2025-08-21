@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
 
     const result = await clientsService.getAllPaginated(validatedParams)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       clients: result.clients,
       pagination: {
         page: validatedParams.page,
@@ -52,17 +52,39 @@ export async function GET(request: NextRequest) {
         sortOrder: validatedParams.sortOrder,
       }
     })
+
+    // Add CORS headers
+    response.headers.set('Access-Control-Allow-Origin', '*')
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    response.headers.set('Access-Control-Max-Age', '86400')
+
+    return response
   } catch (error) {
     console.error("Error in GET /api/clients:", error)
 
     if (error instanceof z.ZodError) {
-      return NextResponse.json({
+      const errorResponse = NextResponse.json({
         error: "Invalid query parameters",
         details: error.errors
       }, { status: 400 })
+      
+      // Add CORS headers to error response
+      errorResponse.headers.set('Access-Control-Allow-Origin', '*')
+      errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+      errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+      
+      return errorResponse
     }
 
-    return NextResponse.json({ error: "Failed to fetch clients" }, { status: 500 })
+    const errorResponse = NextResponse.json({ error: "Failed to fetch clients" }, { status: 500 })
+    
+    // Add CORS headers to error response
+    errorResponse.headers.set('Access-Control-Allow-Origin', '*')
+    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    
+    return errorResponse
   }
 }
 
@@ -75,20 +97,53 @@ export async function POST(request: NextRequest) {
 
     const newClient = await clientsService.create(validatedData)
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       client: newClient,
       message: "Client created successfully"
     }, { status: 201 })
+    
+    // Add CORS headers
+    response.headers.set('Access-Control-Allow-Origin', '*')
+    response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    
+    return response
   } catch (error) {
     console.error("Error in POST /api/clients:", error)
 
     if (error instanceof z.ZodError) {
-      return NextResponse.json({
+      const errorResponse = NextResponse.json({
         error: "Validation failed",
         details: error.errors
       }, { status: 400 })
+      
+      // Add CORS headers to error response
+      errorResponse.headers.set('Access-Control-Allow-Origin', '*')
+      errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+      errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+      
+      return errorResponse
     }
 
-    return NextResponse.json({ error: "Failed to create client" }, { status: 500 })
+    const errorResponse = NextResponse.json({ error: "Failed to create client" }, { status: 500 })
+    
+    // Add CORS headers to error response
+    errorResponse.headers.set('Access-Control-Allow-Origin', '*')
+    errorResponse.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+    errorResponse.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+    
+    return errorResponse
   }
+}
+
+// Handle preflight OPTIONS requests
+export async function OPTIONS() {
+  const response = new NextResponse(null, { status: 200 })
+  
+  response.headers.set('Access-Control-Allow-Origin', '*')
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  response.headers.set('Access-Control-Max-Age', '86400')
+  
+  return response
 }
